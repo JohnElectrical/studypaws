@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>StudyPaws</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ef8fb0">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="StudyPaws"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@500;700&display=swap">
 <style>
@@ -201,6 +206,18 @@ select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,1
 .rcode{font:600 2.2rem Fredoka,sans-serif;letter-spacing:.3em;text-align:center;background:var(--cream);border-radius:20px;padding:10px 0 10px .3em;margin:6px 0 12px;box-shadow:inset 0 0 0 2px var(--lav)}
 .rcode+.hint{margin-bottom:12px}.rbtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .rbtns .btn{flex:1 1 auto}
+/* alarm */
+.chipb[aria-pressed=true]{background:var(--mint)}
+input[type=range]{padding:0;border:0;background:none;accent-color:var(--pink-d);height:28px;box-shadow:none}
+.stopalarm{position:fixed;bottom:84px;left:0;right:0;margin:auto;width:fit-content;z-index:45;background:var(--pink-d);color:#fff;font-size:1rem;padding:12px 26px;animation:ringp 1s ease-in-out infinite}
+@keyframes ringp{50%{box-shadow:0 0 0 10px rgba(239,143,176,.35)}}
+/* room bar + desks */
+.roombar{margin-top:10px;max-width:100%;overflow-wrap:anywhere;text-align:center}
+.desk{height:18px;margin:-26px 4% 0;position:relative;background:linear-gradient(#d9b48f,#c9a27e);border-radius:12px;box-shadow:0 5px 0 #a98260}
+.mname{margin-top:12px}
+.rstat{font-weight:700;font-size:.85rem;margin:2px 0 10px}.rstat.err{color:#c0475f}
+.rlist{font-size:.85rem;margin:0 0 10px;padding-left:18px}
+@media(max-width:600px){.top{flex-wrap:wrap;gap:8px}.tr{gap:6px}.pill{padding:8px 12px;font-size:.78rem}.logo{font-size:1.4rem}}
 </style>
 </head>
 <body>
@@ -219,11 +236,12 @@ select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,1
 
 <div class="app">
   <section class="left" aria-label="Your pet">
-    <div class="top"><div class="logo"><b>🐾</b> StudyPaws</div><div class="tr"><button class="pill" id="acctBtn">👤 Sign in</button><button class="pill" id="motionBtn" aria-pressed="false">✨ Animations: auto</button></div></div>
+    <div class="top"><div class="logo"><b>🐾</b> StudyPaws</div><div class="tr"><button class="pill" id="installBtn" hidden>📲 Install</button><button class="pill" id="acctBtn">👤 Sign in</button><button class="pill" id="motionBtn" aria-pressed="false">✨ Animations: auto</button></div></div>
     <div class="banner" id="banner" hidden></div>
     <div class="bubble" id="status" aria-live="polite"></div>
     <div id="petWrap"></div>
     <div class="tag" id="tag">Mochi</div>
+    <button class="pill roombar" id="roomBar" hidden></button>
     <div class="stage" id="roomStage" aria-label="Study room" hidden></div>
   </section>
 
@@ -263,6 +281,18 @@ select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,1
       <div class="chips"><button class="chipb" data-f="25" data-b="5">25 / 5</button><button class="chipb" data-f="50" data-b="10">50 / 10</button></div>
       <div class="row cfg"><input type="number" id="cf" min="1" max="240" aria-label="Focus minutes"><input type="number" id="cb" min="1" max="60" aria-label="Break minutes"><button class="btn soft sm" id="cSet">Set custom</button></div>
       <p class="hint">Focus minutes, then break minutes. Changes apply to the next session.</p>
+      <h2 style="margin-top:18px">⏰ Alarm</h2>
+      <div class="chips"><button class="chipb" id="alOn" aria-pressed="true">🔔 Alarm on</button><button class="chipb" id="alTest">▶ Test</button></div>
+      <label for="alSound">Sound</label><select id="alSound"></select>
+      <label for="alVol">Volume</label><input type="range" id="alVol" min="0" max="100">
+      <label for="alRing">How long should it ring?</label>
+      <select id="alRing"><option value="1">Once</option><option value="3">3 times</option><option value="5">5 times</option><option value="0">Until I stop it</option></select>
+      <div class="chips"><button class="chipb" id="alPick">📁 Use my own sound</button><button class="chipb" id="alDel" hidden>Remove my sound</button></div>
+      <input type="file" id="alFile" accept="audio/*" hidden>
+      <p class="hint" id="alHint">Rings when a focus session or a break ends. Keep this tab open, and tap anything on the page once so your browser allows sound.</p>
+      <h2 style="margin-top:18px">📱 While you study</h2>
+      <p class="hint" style="margin-top:0">You can switch to other apps or tabs. The timer keeps the right time, but sound only plays while StudyPaws is still open, so don't close it.</p>
+      <div class="chips" style="flex-wrap:wrap"><button class="chipb" id="sysInstall" hidden>📲 Add to home screen</button><button class="chipb" id="sysPip" hidden>📌 Pop-out timer</button><button class="chipb" id="sysAwake" aria-pressed="false" hidden>🔆 Keep screen on</button></div>
       <h2 style="margin-top:18px">Tasks</h2>
       <div class="row"><input id="tkIn" maxlength="80" placeholder="Add a task" aria-label="New task"><button class="btn" id="tkAdd">Add</button></div>
       <select id="tkSub" aria-label="Task subject" style="margin-top:8px"></select>
@@ -283,6 +313,7 @@ select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,1
     <div class="sheet" role="tabpanel"><div id="roomBox"></div></div>
   </aside>
 </div>
+<button class="pill stopalarm" id="stopAlarm" hidden>🔔 Stop alarm</button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="modal" id="modal" hidden><div class="mcard" id="mcard" role="dialog" aria-modal="true"></div></div>
 <div class="admin" id="admin" hidden></div>
@@ -300,6 +331,7 @@ const PETS = {
   frog:{l:'Frog',b:'#a9dc9f',h:'#d2f1c8',bel:'#eefbe6',ear:'#a9dc9f',in:'#8ccb82'}
 };
 const ACTIONS = {idle:['🌿','Relax','Chill out'],look:['👀','Look','Peek around'],study:['✏️','Study','Take notes'],read:['📖','Read','Open a book'],type:['💻','Type','Use laptop'],happy:['😊','Happy','Feel good'],celebrate:['🎉','Party','Hooray!'],sleep:['😴','Sleep','Nap time']};
+const SOUNDS = {chime:'🔔 Chime', bell:'🛎️ Bell', beep:'⏰ Digital beep', melody:'🎵 Happy tune', soft:'🌙 Soft'};
 const ACCS = {bow:['🎀','Bow'],glasses:['👓','Glasses'],hat:['🎩','Top hat'],scarf:['🧣','Scarf'],flowers:['🌸','Flowers'],star:['⭐','Star clip']};
 
 // ----- SVG pet (built only from fixed strings, never from user text) -----
@@ -378,6 +410,8 @@ const subj = () => S.subjects.find(s => s.id === S.subjectId);
 // ----- pet display -----
 let cur = 'idle', timer;
 let roomCh = null, roomReady = false, roomCode = null; // study room (Stage 4)
+let actx = null, ringT = null, cutT = null, customEl = null, customName = ''; // alarm (Stage 5)
+let pipWin = null; // pop-out timer (Stage 6)
 const svg = () => document.querySelector('#petWrap > svg');
 function renderPet() {
   $('petWrap').innerHTML = petSVG(S.pet) + '<div class="fx" id="fx" aria-hidden="true"></div>';
@@ -386,7 +420,7 @@ function renderPet() {
 }
 function applyWear() { svg().querySelectorAll('.acc').forEach(g => g.classList.toggle('on', S.wear.includes(g.dataset.acc))); }
 function setAction(a, quiet) {
-  cur = a; const s = svg(); if (s) s.dataset.s = a; roomTrack();
+  cur = a; const s = svg(); if (s) s.dataset.s = a; roomTrack(); pipDraw();
   document.querySelectorAll('#actions .tile').forEach(b => b.setAttribute('aria-pressed', b.dataset.a === a));
   const n = S.name || PETS[S.pet].l, sb = subj() ? subj().name : 'something fun';
   $('tag').textContent = n;
@@ -502,7 +536,7 @@ function motion() {
 
 // ===== Stage 2: timer (timestamp based), tasks, stats =====
 const DKEY = 'studypaws.v3.study';
-let D = {tasks: [], history: [], goal: 60, cfg: {focus: 25, brk: 5}, timer: null}, T;
+let D = {tasks: [], history: [], goal: 60, cfg: {focus: 25, brk: 5}, alarm: {on: true, sound: 'chime', vol: 70, ring: 3}, timer: null}, T;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
 const saveD = () => { try { localStorage.setItem(DKEY, JSON.stringify(D)); } catch (e) { /* storage unavailable */ } cloudSoon(); };
@@ -515,6 +549,10 @@ function loadD() {
       if (Array.isArray(d.history)) D.history = d.history.filter(h => h && Number(h.ms) > 0 && Number(h.at) > 0).map(h => ({id: String(h.id), subjectId: h.subjectId ? String(h.subjectId) : null, name: typeof h.name === 'string' ? h.name.slice(0, 40) : '', ms: Number(h.ms), at: Number(h.at)}));
       const g = Number(d.goal); if (g >= 5 && g <= 1440) D.goal = Math.round(g);
       if (d.cfg) { const f = Number(d.cfg.focus), b = Number(d.cfg.brk); if (f >= 1 && f <= 240) D.cfg.focus = Math.round(f); if (b >= 1 && b <= 60) D.cfg.brk = Math.round(b); }
+      if (d.alarm && typeof d.alarm === 'object') {
+        const a = d.alarm, v = Number(a.vol), r = Number(a.ring);
+        D.alarm = {on: a.on !== false, sound: (SOUNDS[a.sound] || a.sound === 'custom') ? a.sound : 'chime', vol: v >= 0 && v <= 100 ? Math.round(v) : 70, ring: [0, 1, 3, 5].includes(r) ? r : 3};
+      }
       const t = d.timer;
       if (t && ['focus', 'break'].includes(t.kind) && ['idle', 'running', 'paused'].includes(t.status) && Number(t.total) > 0)
         D.timer = {kind: t.kind, status: t.status, total: Number(t.total), left: Number(t.left) || Number(t.total), endAt: Number(t.endAt) || 0, sid: String(t.sid || uid()), subjectId: t.subjectId ? String(t.subjectId) : null};
@@ -540,19 +578,29 @@ function drawTimer() {
   $('tMain').textContent = T.status === 'running' ? 'Pause' : T.status === 'paused' ? 'Resume' : (T.kind === 'focus' ? 'Start' : 'Start break');
   $('tSkip').hidden = T.kind !== 'break';
   document.title = T.status === 'idle' ? 'StudyPaws' : mmss(l) + ' · StudyPaws';
+  pipDraw();
 }
-function notify(t, b) { try { if ('Notification' in window && Notification.permission === 'granted') new Notification(t, {body: b}); } catch (e) { /* not allowed here */ } }
+function notify(t, b) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const plain = () => { try { new Notification(t, {body: b}); } catch (e) { /* not allowed here */ } };
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) navigator.serviceWorker.getRegistration().then(r => r ? r.showNotification(t, {body: b, icon: 'icon-192.png', vibrate: [200, 100, 200]}) : plain()).catch(plain);
+    else plain();
+  } catch (e) { /* not allowed here */ }
+}
 function startTimer(auto) {
   if (T.status === 'running') return;
+  if (!auto) { stopAlarm(); unlockAudio(); }
   if (T.status === 'idle') { T.left = T.total; T.sid = uid(); T.subjectId = T.kind === 'focus' ? S.subjectId : null; }
   T.endAt = Date.now() + T.left; T.status = 'running';
   if (!auto) { try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) { /* ignore */ } }
   saveD(); petSync(); drawTimer();
 }
-function pauseTimer() { T.left = tLeft(); T.status = 'paused'; saveD(); petSync(); drawTimer(); }
-function resetTimer() { T.status = 'idle'; T.kind = 'focus'; T.total = D.cfg.focus * 60000; T.left = T.total; T.sid = uid(); saveD(); petSync(); drawTimer(); }
+function pauseTimer() { stopAlarm(); T.left = tLeft(); T.status = 'paused'; saveD(); petSync(); drawTimer(); }
+function resetTimer() { stopAlarm(); T.status = 'idle'; T.kind = 'focus'; T.total = D.cfg.focus * 60000; T.left = T.total; T.sid = uid(); saveD(); petSync(); drawTimer(); }
 function finishTimer() {
   const late = Date.now() - T.endAt > 5000;
+  if (Date.now() - T.endAt < 120000) startAlarm(false); // not if you were away for a long time
   let recorded = false;
   if (T.kind === 'focus') {
     if (!D.history.some(h => h.id === T.sid)) { // the session id prevents duplicate records
@@ -842,83 +890,127 @@ if (sb) {
   sb.from('app_settings').select('value').eq('key', 'announcement').maybeSingle().then(({data}) => { if (data && data.value) { const b = $('banner'); b.textContent = data.value; b.hidden = false; } });
 }
 
-// ===== Stage 4: study rooms. Live "presence" over Supabase Realtime, so no database tables are needed =====
+// ===== Stage 4: study rooms. Live over Supabase Realtime: "presence" plus a heartbeat message, so friends still show up if one of them is flaky =====
 const RKEY = 'studypaws.room', RCH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-let roomId = uid(), roomMembers = [], roomT, mateEls = {};
+let roomId = uid(), roomMembers = [], roomT, roomWatch, roomStat = '', roomErr = '', mateEls = {}, mateKeys = '', roomPres = {}, roomBeat = {}, presOK = false;
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(5)), n => RCH[n % RCH.length]).join('');
 const myName = () => (S.name || PETS[S.pet].l).slice(0, 16);
+const inviteLink = () => location.origin + location.pathname + '#room=' + roomCode;
 function roomInfo() {
   const run = T && T.status === 'running';
   return {name: myName(), pet: S.pet, wear: S.wear, act: cur, kind: run ? T.kind : '', end: run ? T.endAt : 0, sub: run && T.kind === 'focus' && subj() ? subj().name : ''};
 }
+function cleanInfo(i) { // everything from other people is checked before it is shown
+  i = i && typeof i === 'object' ? i : {};
+  return {name: String(i.name || '').slice(0, 16), pet: PETS[i.pet] ? i.pet : 'cat', wear: Array.isArray(i.wear) ? i.wear.filter(a => ACCS[a]) : [], act: ACTIONS[i.act] ? i.act : 'idle', kind: i.kind === 'focus' || i.kind === 'break' ? i.kind : '', end: Number(i.end) || 0, sub: String(i.sub || '').slice(0, 30)};
+}
+function roomMerge() {
+  const now = Date.now(), m = {};
+  Object.entries(roomPres).forEach(([k, v]) => { m[k] = v; });
+  Object.entries(roomBeat).forEach(([k, x]) => { if (now - x.t > 15000) delete roomBeat[k]; else m[k] = x.i; });
+  m[roomId] = cleanInfo(roomInfo()); // you always see yourself straight away
+  roomMembers = Object.entries(m).map(([k, v]) => Object.assign({}, v, {k}));
+}
+function roomRefresh() { if (roomCode) roomMerge(); drawRoom(); }
+function sendBeat() { if (roomCh && roomReady) { try { roomCh.send({type: 'broadcast', event: 'beat', payload: {k: roomId, i: roomInfo()}}); } catch (e) { /* ignore */ } } }
 function roomTrack() {
+  if (!roomCode) return;
+  roomRefresh();
   if (!roomCh || !roomReady) return;
-  clearTimeout(roomT); roomT = setTimeout(() => { try { if (roomCh) roomCh.track(roomInfo()); } catch (e) { /* ignore */ } }, 250);
+  clearTimeout(roomT); roomT = setTimeout(() => { try { if (roomCh) roomCh.track(roomInfo()); } catch (e) { /* ignore */ } sendBeat(); }, 250);
 }
 function joinRoom(code) {
   code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   if (!sb) return toast('Online features are unavailable right now.');
   if (code.length !== 5) return toast('A room code has 5 letters or numbers.');
   leaveRoom(true);
-  roomCode = code; roomReady = false; roomMembers = [];
-  const ch = sb.channel('studypaws-room-' + code, {config: {presence: {key: roomId}, broadcast: {self: true}}});
+  roomCode = code; roomReady = false; roomPres = {}; roomBeat = {}; presOK = false; roomErr = ''; roomStat = 'connecting';
+  const ch = sb.channel('studypaws-room-' + code, {config: {presence: {key: roomId}, broadcast: {self: false}}});
   roomCh = ch;
   ch.on('presence', {event: 'sync'}, () => {
     if (ch !== roomCh) return;
-    roomMembers = Object.entries(ch.presenceState()).map(([k, v]) => Object.assign({}, v[v.length - 1], {k}));
-    drawRoom();
+    const state = ch.presenceState(), now = Date.now(); roomPres = {};
+    Object.entries(state).forEach(([k, v]) => { if (k === roomId) presOK = true; else roomPres[k] = cleanInfo(v[v.length - 1]); });
+    if (presOK) Object.keys(roomBeat).forEach(k => { if (!(k in state) && now - roomBeat[k].t > 6000) delete roomBeat[k]; });
+    roomRefresh();
+  }).on('broadcast', {event: 'beat'}, ({payload}) => {
+    if (ch !== roomCh || !payload || typeof payload.k !== 'string' || payload.k === roomId) return;
+    roomBeat[payload.k] = {t: Date.now(), i: cleanInfo(payload.i)}; roomRefresh();
+  }).on('broadcast', {event: 'bye'}, ({payload}) => {
+    if (ch !== roomCh || !payload || typeof payload.k !== 'string') return;
+    delete roomBeat[payload.k]; delete roomPres[payload.k]; roomRefresh();
   }).on('broadcast', {event: 'cheer'}, ({payload}) => onCheer(payload))
-    .subscribe(async st => {
+    .subscribe(async (st, err) => {
       if (ch !== roomCh) return;
       if (st === 'SUBSCRIBED') {
-        roomReady = true; try { await ch.track(roomInfo()); } catch (e) { /* ignore */ }
-        try { localStorage.setItem(RKEY, code); } catch (e) { /* ignore */ }
-        roomUI(); toast('You joined room ' + code + ' 🐾');
-      } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { toast('Could not connect to the room. Check your internet and try again.'); leaveRoom(); }
+        roomReady = true; roomStat = 'live'; roomErr = '';
+        try { await ch.track(roomInfo()); } catch (e) { /* ignore */ }
+        sendBeat(); try { localStorage.setItem(RKEY, code); } catch (e) { /* ignore */ }
+        roomRefresh();
+      } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
+        roomReady = false; roomStat = 'error';
+        roomErr = err && err.message ? String(err.message).slice(0, 120) : (st === 'TIMED_OUT' ? 'The connection timed out.' : 'The connection was refused.');
+        roomRefresh();
+      } else if (st === 'CLOSED') { roomReady = false; if (roomStat === 'live') roomStat = 'connecting'; roomRefresh(); }
     });
-  roomUI();
+  clearTimeout(roomWatch);
+  roomWatch = setTimeout(() => { if (ch === roomCh && roomStat !== 'live') { roomStat = 'error'; roomErr = roomErr || 'Still not connected. The online service may be blocked or turned off.'; roomRefresh(); } }, 10000);
+  roomRefresh();
 }
 function leaveRoom(quiet) {
-  const ch = roomCh; roomCh = null; roomReady = false; roomCode = null; roomMembers = [];
-  if (ch) { try { sb.removeChannel(ch); } catch (e) { /* ignore */ } }
+  const ch = roomCh;
+  if (ch && roomReady) { try { ch.send({type: 'broadcast', event: 'bye', payload: {k: roomId}}); } catch (e) { /* ignore */ } }
+  roomCh = null; roomReady = false; roomCode = null; roomMembers = []; roomPres = {}; roomBeat = {}; presOK = false; roomStat = ''; roomErr = ''; clearTimeout(roomWatch); clearTimeout(roomT);
+  if (ch) setTimeout(() => { try { sb.removeChannel(ch); } catch (e) { /* ignore */ } }, 200); // lets the goodbye message go out first
   if (!quiet) { try { localStorage.removeItem(RKEY); } catch (e) { /* ignore */ } drawRoom(); }
 }
-function sendCheer() { if (roomCh && roomReady) roomCh.send({type: 'broadcast', event: 'cheer', payload: {k: roomId, n: myName()}}); }
+function sendCheer() {
+  if (!roomCh || !roomReady) return toast('Not connected to the room yet.');
+  const payload = {k: roomId, n: myName()}; onCheer(payload);
+  try { roomCh.send({type: 'broadcast', event: 'cheer', payload}); } catch (e) { /* ignore */ }
+}
 function onCheer(p) {
   if (!p || typeof p.k !== 'string') return;
-  const m = mateEls[p.k];
-  if (m) { m.svg.dataset.s = 'celebrate'; setTimeout(() => { const n = mateEls[p.k]; if (n) n.svg.dataset.s = n.act; }, 3500); }
+  const e = mateEls[p.k];
+  if (e) { e.cheerUntil = Date.now() + 3500; e.svg.dataset.s = 'celebrate'; setTimeout(() => { const n = mateEls[p.k]; if (n && !(n.cheerUntil > Date.now())) n.svg.dataset.s = n.act; }, 3600); }
   if (p.k !== roomId) toast(String(p.n || 'A friend').slice(0, 16) + ' is cheering for everyone! 🎉');
 }
 function drawRoom() {
-  const st = $('roomStage'), show = !!roomCode && roomMembers.length > 0;
-  st.hidden = !show; $('petWrap').hidden = show; $('tag').hidden = show;
-  st.innerHTML = ''; mateEls = {};
-  if (show) {
-    const list = [...roomMembers].sort((a, b) => a.k === roomId ? -1 : b.k === roomId ? 1 : String(a.name).localeCompare(String(b.name))).slice(0, 12), n = list.length;
-    const w = n <= 1 ? 'min(340px,70vw)' : n === 2 ? 'min(220px,40vw)' : n <= 4 ? 'min(170px,28vw)' : 'min(120px,20vw)';
+  const st = $('roomStage'), bar = $('roomBar'), inRoom = !!roomCode;
+  $('petWrap').hidden = inRoom; $('tag').hidden = inRoom; st.hidden = !inRoom; bar.hidden = !inRoom;
+  if (!inRoom) { st.innerHTML = ''; mateEls = {}; mateKeys = ''; roomUI(); return; }
+  const n = roomMembers.length;
+  bar.textContent = '👥 Room ' + roomCode + ' · ' + (roomStat === 'error' ? 'not connected' : roomStat !== 'live' ? 'connecting...' : n > 1 ? n + ' studying together' : 'waiting for friends') + ' · tap to copy invite';
+  const list = [...roomMembers].sort((a, b) => a.k === roomId ? -1 : b.k === roomId ? 1 : (a.name + a.k).localeCompare(b.name + b.k)).slice(0, 12);
+  const keys = list.map(m => [m.k, m.pet, m.wear.join(','), m.name].join('~')).join('^');
+  if (keys !== mateKeys) {
+    mateKeys = keys; st.innerHTML = ''; mateEls = {};
+    const w = list.length <= 1 ? 'min(340px,70vw)' : list.length === 2 ? 'min(220px,40vw)' : list.length <= 4 ? 'min(170px,28vw)' : 'min(120px,20vw)';
     list.forEach((m, i) => {
-      const pet = PETS[m.pet] ? m.pet : 'cat', act = ACTIONS[m.act] ? m.act : 'idle', wear = Array.isArray(m.wear) ? m.wear.filter(a => ACCS[a]) : [];
       const d = el('div', 'mate' + (m.k === roomId ? ' me' : '')), pw = el('div', 'mpet');
       d.style.setProperty('--w', w);
-      pw.innerHTML = petSVG(pet, 'r' + i); // built only from fixed strings; pet key is checked above
-      const sv = pw.firstElementChild; sv.dataset.s = act;
-      sv.querySelectorAll('.acc').forEach(g => { if (wear.includes(g.dataset.acc)) g.classList.add('on'); });
-      const nm = el('div', 'mname', String(m.name || PETS[pet].l).slice(0, 16) + (m.k === roomId ? ' (you)' : '')), stt = el('div', 'mstat');
-      d.append(pw, nm, stt); st.append(d);
-      mateEls[m.k] = {svg: sv, stat: stt, m, act};
+      pw.innerHTML = petSVG(m.pet, 'r' + i); // built only from fixed strings; the pet key was checked
+      const sv = pw.firstElementChild; sv.dataset.s = m.act;
+      sv.querySelectorAll('.acc').forEach(g => { if (m.wear.includes(g.dataset.acc)) g.classList.add('on'); });
+      const nm = el('div', 'mname', (m.name || PETS[m.pet].l) + (m.k === roomId ? ' (you)' : '')), stt = el('div', 'mstat');
+      d.append(pw, el('div', 'desk'), nm, stt); st.append(d);
+      mateEls[m.k] = {svg: sv, stat: stt, m, act: m.act, cheerUntil: 0};
     });
+  } else {
+    list.forEach(m => { const e = mateEls[m.k]; if (!e) return; e.m = m; e.act = m.act; if (!(e.cheerUntil > Date.now())) e.svg.dataset.s = m.act; });
   }
   roomUI(); roomText();
 }
 function roomText() {
   Object.values(mateEls).forEach(({stat, m}) => {
     const a = ACTIONS[m.act] ? m.act : 'idle', left = Number(m.end) - Date.now();
-    stat.textContent = m.kind === 'focus' && left > 0 ? '✏️ Studying' + (m.sub ? ' ' + String(m.sub).slice(0, 30) : '') + ' · ' + mmss(left)
+    stat.textContent = m.kind === 'focus' && left > 0 ? '✏️ Studying' + (m.sub ? ' ' + m.sub : '') + ' · ' + mmss(left)
       : m.kind === 'break' && left > 0 ? '☕ Break · ' + mmss(left) : ACTIONS[a][0] + ' ' + ACTIONS[a][1];
   });
 }
 setInterval(roomText, 1000);
+setInterval(() => { if (roomCode) roomRefresh(); }, 2000);
+setInterval(sendBeat, 4000);
 function copyText(t) {
   if (!navigator.clipboard) return toast('Could not copy. Please copy it by hand.');
   navigator.clipboard.writeText(t).then(() => toast('Copied!'), () => toast('Could not copy. Please copy it by hand.'));
@@ -932,22 +1024,169 @@ function roomUI() {
     inp.placeholder = 'Enter code'; inp.maxLength = 5; inp.style.textTransform = 'uppercase'; inp.setAttribute('aria-label', 'Room code');
     go.onclick = () => joinRoom(inp.value); inp.onkeydown = e => { if (e.key === 'Enter') joinRoom(inp.value); };
     row.append(inp, go);
-    b.append(el('h2', '', 'Study together'), el('p', 'hint', 'Create a room and send the code to your friends. Everyone\'s pets show up together on the left, and you can see who is studying.'), mk, el('h2', '', 'Have a code?'), row);
+    b.append(el('h2', '', 'Study together'), el('p', 'hint', 'Create a room and send the code to your friends. Everyone\'s pets sit together on the left, and you can see who is studying.'), mk, el('h2', '', 'Have a code?'), row);
     return;
   }
   const code = el('div', 'rcode', roomCode), btns = el('div', 'rbtns'), cp = el('button', 'btn soft sm', 'Copy code'), ln = el('button', 'btn soft sm', 'Copy invite link'), ch = el('button', 'btn sm', 'Cheer 🎉'), lv = el('button', 'btn red sm', 'Leave room');
-  cp.onclick = () => copyText(roomCode); ln.onclick = () => copyText(location.origin + location.pathname + '#room=' + roomCode);
-  ch.onclick = sendCheer; lv.onclick = () => { leaveRoom(); toast('You left the room.'); };
+  cp.onclick = () => copyText(roomCode); ln.onclick = () => copyText(inviteLink()); ch.onclick = sendCheer; lv.onclick = () => { leaveRoom(); toast('You left the room.'); };
   btns.append(cp, ln, ch, lv);
-  b.append(el('h2', '', 'You are in a room'), code, el('p', 'hint', roomReady ? (roomMembers.length === 1 ? 'Just you so far. Send the code to a friend!' : roomMembers.length + ' people are here.') : 'Connecting...'), btns,
+  const stat = el('p', 'rstat' + (roomStat === 'error' ? ' err' : ''), roomStat === 'live' ? '🟢 Connected · ' + roomMembers.length + (roomMembers.length === 1 ? ' person here' : ' people here') : roomStat === 'error' ? '🔴 Can\'t connect: ' + roomErr : '🟡 Connecting...');
+  b.append(el('h2', '', 'You are in a room'), code, stat);
+  if (roomStat === 'error') {
+    const rt = el('button', 'btn sm', 'Try again'); rt.onclick = () => joinRoom(roomCode); rt.style.marginBottom = '10px'; b.append(rt, el('p', 'hint', 'Site owner: in Supabase open Realtime → Settings and make sure "Allow public access" is on.'));
+  }
+  const ul = el('ul', 'rlist'); roomMembers.forEach(m => ul.append(el('li', '', (m.name || PETS[m.pet].l) + (m.k === roomId ? ' (you)' : '')))); b.append(btns, ul,
     el('p', 'hint', 'People in the room can see your pet, its name, and the subject you are studying. Anyone with the code can join, so only share it with friends.'));
 }
+$('roomBar').onclick = () => { if (roomCode) copyText(inviteLink()); };
 (function () {
   const m = /room=([A-Za-z0-9]{5})/.exec(location.hash); let c = m ? m[1] : '';
   if (!c) { try { c = localStorage.getItem(RKEY) || ''; } catch (e) { /* ignore */ } }
   roomUI();
   if (c && sb) { joinRoom(c); if (m) { tab(5); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ } } }
 })();
+
+// ===== Stage 5: alarm (sounds are made in the browser, so there are no files to download) =====
+const AKEY = 'studypaws.alarmFile';
+function unlockAudio() {
+  try { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; if (!actx) actx = new C(); if (actx.state === 'suspended') actx.resume(); } catch (e) { /* no audio available */ }
+}
+['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, {passive: true}));
+function tone(f, t0, dur, type, vol) {
+  const o = actx.createOscillator(), g = actx.createGain(), v = Math.max(vol, 0.0001);
+  o.type = type; o.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function playOnce(id, vol100) { // returns how many seconds the sound lasts
+  const vol = vol100 / 100;
+  if (id === 'custom' && customEl) {
+    customEl.volume = Math.max(0, Math.min(1, vol));
+    try { customEl.currentTime = 0; const p = customEl.play(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignore */ }
+    const len = isFinite(customEl.duration) && customEl.duration > 0 ? Math.min(customEl.duration, 20) : 4;
+    clearTimeout(cutT); cutT = setTimeout(() => { try { customEl.pause(); } catch (e) { /* ignore */ } }, len * 1000);
+    return len;
+  }
+  if (!actx) unlockAudio(); if (!actx) return 0;
+  const t = actx.currentTime + 0.05, v = vol * 0.4, n = (f, at, d, type, k) => tone(f, t + at, d, type || 'sine', v * (k || 1));
+  if (id === 'bell') { [1, 2.4, 3.6].forEach((m, i) => tone(392 * m, t, 2.2 / (i + 1), 'sine', v / (i + 1))); return 2.2; }
+  if (id === 'beep') { for (let i = 0; i < 4; i++) n(1000, i * 0.25, 0.15, 'square', 0.4); return 1; }
+  if (id === 'melody') { [523.25, 659.25, 783.99, 659.25, 783.99, 1046.5].forEach((f, i) => n(f, i * 0.2, 0.3, 'triangle')); return 1.4; }
+  if (id === 'soft') { n(440, 0, 1.2); n(554.37, 0.35, 1.4); return 1.9; }
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => n(f, i * 0.22, 1.0)); return 1.9;
+}
+function startAlarm(preview) {
+  stopAlarm();
+  const A = D.alarm; if (!preview && !A.on) return;
+  const reps = preview ? 1 : (A.ring === 0 ? 40 : A.ring); let k = 0;
+  if (!preview && reps > 1) $('stopAlarm').hidden = false;
+  const go = () => { if (k++ >= reps) return stopAlarm(); ringT = setTimeout(go, (playOnce(A.sound, A.vol) + 1.2) * 1000); };
+  go();
+  if (!preview) { try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) { /* ignore */ } }
+}
+function stopAlarm() {
+  clearTimeout(ringT); ringT = null; clearTimeout(cutT);
+  $('stopAlarm').hidden = true;
+  if (customEl) { try { customEl.pause(); } catch (e) { /* ignore */ } }
+}
+function loadCustom(name, url) { customEl = new Audio(url); customEl.preload = 'auto'; customName = name; }
+function fillAlarmUI() {
+  const A = D.alarm, sel = $('alSound'); sel.innerHTML = '';
+  Object.entries(SOUNDS).forEach(([k, l]) => { const o = el('option', '', l); o.value = k; sel.append(o); });
+  if (customEl) { const o = el('option', '', '📁 ' + (customName || 'My own sound')); o.value = 'custom'; sel.append(o); } else if (A.sound === 'custom') A.sound = 'chime';
+  sel.value = A.sound; $('alVol').value = A.vol; $('alRing').value = String(A.ring);
+  $('alOn').setAttribute('aria-pressed', A.on); $('alOn').textContent = A.on ? '🔔 Alarm on' : '🔕 Alarm off';
+  $('alDel').hidden = !customEl; $('alPick').textContent = customEl ? '📁 Change my sound' : '📁 Use my own sound';
+}
+function initAlarm() {
+  try { const c = JSON.parse(localStorage.getItem(AKEY)); if (c && typeof c.url === 'string' && c.url.indexOf('data:audio/') === 0) loadCustom(String(c.name || 'My own sound').slice(0, 40), c.url); } catch (e) { /* none saved */ }
+  fillAlarmUI();
+  $('alOn').onclick = () => { D.alarm.on = !D.alarm.on; saveD(); fillAlarmUI(); if (!D.alarm.on) stopAlarm(); };
+  $('alTest').onclick = () => { unlockAudio(); startAlarm(true); };
+  $('alSound').onchange = e => { D.alarm.sound = e.target.value; saveD(); startAlarm(true); };
+  $('alVol').oninput = e => { D.alarm.vol = Math.round(Number(e.target.value)); };
+  $('alVol').onchange = () => { saveD(); startAlarm(true); };
+  $('alRing').onchange = e => { D.alarm.ring = Number(e.target.value); saveD(); };
+  $('stopAlarm').onclick = stopAlarm;
+  $('alPick').onclick = () => $('alFile').click();
+  $('alFile').onchange = e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    if (!f.type.startsWith('audio/')) return toast('Please choose an audio file (mp3, wav, m4a...).');
+    if (f.size > 2 * 1024 * 1024) return toast('That file is too big. Please pick one under 2 MB.');
+    const r = new FileReader();
+    r.onload = () => {
+      try { localStorage.setItem(AKEY, JSON.stringify({name: f.name.slice(0, 40), url: r.result})); } catch (er) { return toast('Could not save that sound on this device.'); }
+      loadCustom(f.name.slice(0, 40), r.result); D.alarm.sound = 'custom'; saveD(); fillAlarmUI(); startAlarm(true); toast('Your sound is saved on this device 🎶');
+    };
+    r.onerror = () => toast('Could not read that file.');
+    r.readAsDataURL(f);
+  };
+  $('alDel').onclick = () => { try { localStorage.removeItem(AKEY); } catch (e) { /* ignore */ } customEl = null; customName = ''; if (D.alarm.sound === 'custom') D.alarm.sound = 'chime'; saveD(); fillAlarmUI(); toast('Your sound was removed.'); };
+}
+initAlarm();
+
+// ===== Stage 6: studying away from the page (install as an app, pop-out timer, keep screen on) =====
+const AWKEY = 'studypaws.awake';
+let installEv = null, wakeLock = null, wantAwake = false;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+const isApp = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+function sysUI() {
+  const can = !isApp() && (!!installEv || isIOS);
+  $('installBtn').hidden = !can; $('sysInstall').hidden = !can;
+  $('sysPip').hidden = !('documentPictureInPicture' in window); $('sysPip').textContent = pipWin ? '📌 Close pop-out' : '📌 Pop-out timer';
+  $('sysAwake').hidden = !navigator.wakeLock; $('sysAwake').setAttribute('aria-pressed', wantAwake);
+}
+function doInstall() {
+  if (installEv) { installEv.prompt(); installEv.userChoice.then(() => { installEv = null; sysUI(); }, () => {}); return; }
+  if (isIOS) {
+    modal.hidden = false; mcard.innerHTML = '';
+    const close = el('button', 'lnk', 'Close'); close.onclick = closeModal;
+    mcard.append(el('h2', '', 'Add StudyPaws to your home screen'), el('p', '', '1. Tap the Share button in Safari (the square with an arrow).'), el('p', '', '2. Scroll down and tap "Add to Home Screen".'), el('p', '', '3. Tap Add. StudyPaws then opens full screen like an app.'), close);
+    return;
+  }
+  toast('Open your browser menu and choose "Install app" or "Add to Home screen".');
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; sysUI(); });
+window.addEventListener('appinstalled', () => { installEv = null; sysUI(); toast('StudyPaws was added to your device 🎉'); });
+$('installBtn').onclick = doInstall; $('sysInstall').onclick = doInstall;
+if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* app still works without it */ });
+
+// keep the screen on while a timer is running (only if you switch it on)
+async function wakeOn() { if (wakeLock || !navigator.wakeLock) return; try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } catch (e) { wakeLock = null; } }
+function wakeOff() { if (wakeLock) { try { wakeLock.release(); } catch (e) { /* ignore */ } wakeLock = null; } }
+function wakeCheck() { if (wantAwake && T.status === 'running' && document.visibilityState === 'visible') wakeOn(); else if (!wantAwake || T.status !== 'running') wakeOff(); }
+try { wantAwake = localStorage.getItem(AWKEY) === '1'; } catch (e) { /* ignore */ }
+$('sysAwake').onclick = () => { wantAwake = !wantAwake; try { localStorage.setItem(AWKEY, wantAwake ? '1' : ''); } catch (e) { /* ignore */ } sysUI(); wakeCheck(); toast(wantAwake ? 'The screen stays on while a timer runs.' : 'Screen can turn off again.'); };
+setInterval(wakeCheck, 2000); document.addEventListener('visibilitychange', wakeCheck);
+
+// pop-out mini timer: a small window that floats above your other apps (Chrome / Edge on a computer)
+async function popOut() {
+  if (!('documentPictureInPicture' in window)) return toast('Pop-out timer needs Chrome or Edge on a computer.');
+  if (pipWin) { try { pipWin.close(); } catch (e) { /* ignore */ } return; }
+  try {
+    const w = await window.documentPictureInPicture.requestWindow({width: 270, height: 340}), d = w.document;
+    document.querySelectorAll('link[rel=stylesheet], style').forEach(n => d.head.append(n.cloneNode(true)));
+    d.body.className = document.body.className; d.body.style.cssText = 'margin:0;padding:12px;background:#fff6ee;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:100vh;color:#4b3f5c;font-family:Nunito,sans-serif';
+    const pet = el('div'), kind = el('small'), clock = el('b'), main = el('button', 'btn', 'Start'), stop = el('button', 'btn red sm', 'Stop alarm');
+    pet.id = 'pPet'; pet.style.width = '150px'; kind.id = 'pKind'; clock.id = 'pClock'; clock.style.cssText = 'font:600 2.4rem Fredoka,sans-serif'; main.id = 'pMain'; stop.id = 'pStop'; stop.hidden = true;
+    main.onclick = () => (T.status === 'running' ? pauseTimer() : startTimer()); stop.onclick = stopAlarm;
+    d.body.append(pet, kind, clock, main, stop);
+    pipWin = w; w.addEventListener('pagehide', () => { pipWin = null; sysUI(); });
+    pipDraw(); sysUI();
+  } catch (e) { toast('Could not open the pop-out timer here.'); }
+}
+function pipDraw() {
+  if (!pipWin) return;
+  try {
+    const d = pipWin.document, q = id => d.getElementById(id); if (!q('pClock')) return;
+    q('pClock').textContent = mmss(tLeft()); q('pKind').textContent = T.kind === 'focus' ? 'Focus' : 'Break'; q('pMain').textContent = $('tMain').textContent; q('pStop').hidden = $('stopAlarm').hidden;
+    const sig = S.pet + '|' + S.wear.join(',');
+    if (pipWin.spSig !== sig) { pipWin.spSig = sig; q('pPet').innerHTML = petSVG(S.pet, 'pip'); q('pPet').firstElementChild.querySelectorAll('.acc').forEach(g => g.classList.toggle('on', S.wear.includes(g.dataset.acc))); }
+    q('pPet').firstElementChild.dataset.s = cur;
+  } catch (e) { pipWin = null; }
+}
+$('sysPip').onclick = popOut;
+sysUI();
 </script>
 </body>
 </html>
