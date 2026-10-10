@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>StudyPaws</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@500;700&display=swap">
+<style>
+:root{--ink:#4b3f5c;--pink:#f9d3e0;--pink-d:#ef8fb0;--lav:#e6defa;--lav-d:#9a8bd1;--mint:#d4ebd6;--mint-d:#6fae82;--cream:#fffaf0;--spring:cubic-bezier(.34,1.56,.64,1);--glass:rgba(255,251,244,.84)}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:Nunito,"Trebuchet MS",system-ui,sans-serif;color:var(--ink);background:#f6e6ee;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+h1,h2,.logo,.tag{font-family:Fredoka,"Trebuchet MS",sans-serif;font-weight:600}
+:focus-visible{outline:3px solid var(--lav-d);outline-offset:3px}
+/* scenery */
+.scene{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:linear-gradient(#fbd9e4 0%,#fff1e0 42%,#e3f3dc 72%)}
+.scene svg{position:absolute;bottom:0;left:0;width:100%;height:70%}
+.sun{position:absolute;top:7%;left:10%;width:84px;height:84px;border-radius:50%;background:radial-gradient(#fffbe0,#ffe69a);box-shadow:0 0 60px 20px rgba(255,230,150,.6);animation:glow 6s ease-in-out infinite}
+.cloud{position:absolute;width:110px;height:34px;background:#fff;border-radius:30px;opacity:.9;animation:drift linear infinite}
+.cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border-radius:50%}
+.cloud::before{width:50px;height:50px;top:-22px;left:16px}.cloud::after{width:36px;height:36px;top:-14px;left:56px}
+.c1{top:14%;animation-duration:80s}.c2{top:26%;animation-duration:110s;animation-delay:-50s;scale:.7}.c3{top:8%;animation-duration:95s;animation-delay:-25s;scale:.5}
+.cloud{left:-160px}
+.leaf{position:absolute;top:-20px;width:13px;height:13px;background:#9bd0a6;border-radius:0 100% 0 100%;opacity:.7;animation:fall linear infinite}
+@keyframes drift{to{transform:translateX(calc(100vw + 320px))}}
+@keyframes glow{50%{box-shadow:0 0 90px 34px rgba(255,230,150,.8)}}
+@keyframes fall{50%{transform:translate(40px,55vh) rotate(260deg)}to{transform:translate(-20px,110vh) rotate(540deg)}}
+/* layout */
+.app{position:relative;z-index:1;display:grid;grid-template-columns:1fr 410px;gap:24px;max-width:1180px;margin:0 auto;padding:20px;min-height:100vh}
+.left{display:flex;flex-direction:column;align-items:center}
+.top{width:100%;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:1.6rem;display:flex;align-items:center;gap:8px}
+.logo b{display:inline-block;animation:wiggle 4s ease-in-out infinite}
+@keyframes wiggle{0%,85%,100%{transform:rotate(0)}90%{transform:rotate(-16deg)}95%{transform:rotate(12deg)}}
+.pill{border:0;background:var(--glass);color:var(--ink);font:700 .85rem Nunito,sans-serif;padding:9px 16px;border-radius:30px;cursor:pointer;box-shadow:0 4px 14px rgba(110,90,130,.15);transition:transform .35s var(--spring)}
+.pill:hover{transform:translateY(-2px) scale(1.05)}.pill:active{transform:scale(.94)}
+.pill[aria-pressed=true]{background:var(--mint)}
+.bubble{margin-top:auto;background:var(--glass);padding:10px 20px;border-radius:22px;font-weight:700;text-align:center;position:relative;box-shadow:0 6px 18px rgba(110,90,130,.14);min-height:42px}
+.bubble::after{content:"";position:absolute;bottom:-8px;left:50%;margin-left:-8px;border:8px solid transparent;border-bottom:0;border-top-color:var(--glass)}
+#petWrap{position:relative;width:min(380px,78vw);aspect-ratio:220/250;margin:auto 0 12px}
+#petWrap>svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 8px 8px rgba(80,60,100,.14))}
+.tag{background:var(--pink);padding:5px 22px;border-radius:30px;font-size:1.2rem;margin-top:8px;box-shadow:0 4px 0 #efb6ca}
+.fx{position:absolute;inset:0;pointer-events:none}
+.fx .h{position:absolute;bottom:35%;font-size:22px;animation:up 2.4s ease-out forwards}
+.fx .sp{position:absolute;top:28%;left:50%;font-size:18px;animation:burst .9s ease-out forwards}
+@keyframes up{to{transform:translate(14px,-170px) rotate(18deg);opacity:0}}
+@keyframes burst{to{transform:translate(var(--dx),var(--dy)) scale(1.3) rotate(120deg);opacity:0}}
+/* panel */
+.panel{background:var(--glass);backdrop-filter:blur(10px);border-radius:32px;padding:18px;box-shadow:0 16px 44px rgba(110,90,130,.2);align-self:center;max-height:calc(100vh - 40px);overflow:auto}
+.tabs{position:relative;display:grid;grid-template-columns:repeat(3,1fr);background:var(--lav);border-radius:22px;padding:5px}
+.tabs i{position:absolute;top:5px;bottom:5px;left:5px;width:calc((100% - 10px)/3);background:#fff;border-radius:18px;box-shadow:0 3px 10px rgba(110,90,130,.18);transition:transform .5s var(--spring)}
+.tabs button{position:relative;border:0;background:none;padding:10px 4px;font:600 .95rem Fredoka,sans-serif;color:var(--ink);cursor:pointer;border-radius:18px}
+.tabs button[aria-selected=true]{color:#c2587f}
+.sheet{display:none;padding-top:16px}.sheet.on{display:block;animation:rise .5s var(--spring)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+h2{font-size:1.05rem;margin:14px 0 8px}h2:first-child{margin-top:0}
+label{display:block;font-weight:700;font-size:.85rem;margin:12px 0 5px}
+input{width:100%;padding:11px 15px;border:2px solid var(--lav);border-radius:16px;background:var(--cream);font:inherit;color:var(--ink);transition:border-color .25s,box-shadow .25s}
+input:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,139,209,.2)}
+.row{display:flex;gap:8px}.row input{flex:1;min-width:0}
+.btn{border:0;font:700 .9rem Nunito,sans-serif;color:#fff;background:linear-gradient(#f6a3bf,var(--pink-d));padding:10px 18px;border-radius:16px;cursor:pointer;box-shadow:0 4px 0 #d0789a;transition:transform .35s var(--spring),box-shadow .2s}
+.btn:hover{transform:translateY(-2px) scale(1.05)}.btn:active{transform:translateY(3px) scale(.95);box-shadow:0 1px 0 #d0789a}
+.btn.soft{background:var(--lav);color:var(--ink);box-shadow:0 4px 0 #c4b9e6}.btn.red{background:#ec8d8d;box-shadow:0 4px 0 #c46868}
+.btn.sm{padding:6px 12px;font-size:.8rem}
+.avatars{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.avatars button{border:3px solid transparent;background:var(--cream);border-radius:18px;padding:3px;cursor:pointer;transition:transform .4s var(--spring),background .25s}
+.avatars button:hover{transform:translateY(-4px) scale(1.08)}
+.avatars button[aria-pressed=true]{border-color:var(--pink-d);background:var(--pink);transform:scale(1.06)}
+.avatars svg{width:100%;height:46px;display:block}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.tiles.three{grid-template-columns:repeat(3,1fr)}
+.tile{position:relative;border:0;background:linear-gradient(145deg,#fff,var(--cream));box-shadow:0 5px 14px rgba(110,90,130,.12),inset 0 0 0 2px var(--lav);border-radius:22px;padding:10px;display:flex;align-items:center;gap:10px;text-align:left;font:700 .9rem Nunito,sans-serif;color:var(--ink);cursor:pointer;transition:transform .4s var(--spring),box-shadow .25s,background .25s}
+.tile i{font-style:normal;width:42px;height:42px;display:grid;place-items:center;border-radius:14px;background:var(--pink);font-size:1.35rem;flex-shrink:0;transition:transform .45s var(--spring)}
+.tile small{display:block;font-weight:500;opacity:.65;font-size:.74rem}
+.tile:hover{transform:translateY(-4px);box-shadow:0 12px 22px rgba(239,143,176,.28),inset 0 0 0 2px var(--pink-d)}
+.tile:hover i{transform:scale(1.15) rotate(-8deg)}
+.tile.pop{animation:tilePop .55s var(--spring)}
+@keyframes tilePop{0%{transform:scale(1)}30%{transform:scale(.88)}65%{transform:scale(1.07)}100%{transform:scale(1)}}
+.tile[aria-pressed=true]{background:linear-gradient(145deg,#fde3ec,var(--pink));box-shadow:0 8px 20px rgba(239,143,176,.35),inset 0 0 0 2px var(--pink-d)}
+.tiles.three .tile{flex-direction:column;text-align:center;gap:6px;padding:12px 6px}
+.tiles.three .tile i{width:48px;height:48px;font-size:1.6rem}
+.tile .ck{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--mint-d);color:#fff;font-size:.7rem;display:grid;place-items:center;transform:scale(0);transition:transform .45s var(--spring)}
+.tile[aria-pressed=true] .ck{transform:scale(1)}
+.hint{font-size:.82rem;opacity:.7;margin:10px 2px 0}
+.list{list-style:none;margin:14px 0 0;padding:0}
+.list li{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--cream);border-radius:18px;padding:10px 12px;margin-bottom:8px;animation:rise .4s var(--spring);transition:transform .3s var(--spring)}
+.list li:hover{transform:translateX(4px)}.list li.cur{box-shadow:inset 0 0 0 3px var(--mint-d);background:#f0f9f0}
+.list .nm{flex:1;font-weight:700;min-width:100px;overflow-wrap:anywhere}
+.list input{padding:7px 12px}
+.empty{text-align:center;padding:22px 8px;font-size:2.6rem}.empty p{font-size:.95rem;margin:4px 0 0}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,120px);background:var(--ink);color:#fff;padding:12px 22px;border-radius:30px;z-index:9;transition:transform .5s var(--spring);max-width:90vw;font-weight:700}
+.toast.show{transform:translate(-50%,0)}
+@media(max-width:900px){.app{grid-template-columns:1fr;padding:14px}.panel{max-height:none;align-self:stretch;margin-bottom:10px}#petWrap{width:min(300px,72vw)}.bubble{margin-top:10px}}
+/* pet */
+svg *{transform-box:fill-box;transform-origin:center}
+.book,.laptop,.pencil,.zzz,.eyes-closed{opacity:0;transition:opacity .35s}
+.acc{opacity:0;transform:scale(.2) translateY(-16px);transition:transform .6s var(--spring),opacity .3s}
+.acc.on{opacity:1;transform:none}
+.instant .acc,.instant .head{transition:none!important}
+.pet .head,.pet .eyes{transition:transform .6s var(--spring)}
+.pet .eye{animation:blink 5s infinite}
+.pet .body-g{animation:breathe 4.5s ease-in-out infinite}
+.pet .tail{transform-origin:10% 90%;animation:wag 5s ease-in-out infinite}
+.pet.react .head{animation:nod .8s var(--spring)}
+@keyframes nod{0%{transform:rotate(0)}25%{transform:rotate(-7deg) scale(1.03)}55%{transform:rotate(5deg)}100%{transform:rotate(0)}}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.08)}}
+@keyframes breathe{50%{transform:scale(1.015,.99)}}
+@keyframes wag{50%{transform:rotate(4deg)}}
+.pet[data-s=look] .eyes{animation:look 2.6s ease-in-out infinite}
+.pet[data-s=look] .head{animation:tilt 2.6s ease-in-out infinite}
+@keyframes look{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+@keyframes tilt{25%{transform:rotate(-3deg)}75%{transform:rotate(3deg)}}
+.pet[data-s=study] .head{transform:translateY(9px) rotate(3deg)}
+.pet[data-s=study] .book,.pet[data-s=study] .pencil{opacity:1}
+.pet[data-s=study] .pencil{animation:write .5s ease-in-out infinite alternate}
+@keyframes write{to{transform:translate(3px,1px) rotate(4deg)}}
+.pet[data-s=read] .book{opacity:1}
+.pet[data-s=read] .head{animation:rnod 3.5s ease-in-out infinite}
+.pet[data-s=read] .eyes{animation:reyes 2s steps(4) infinite}
+@keyframes rnod{50%{transform:translateY(5px)}}@keyframes reyes{50%{transform:translateX(4px)}}
+.pet[data-s=type] .laptop{opacity:1}.pet[data-s=type] .head{transform:translateY(6px)}
+.pet[data-s=type] .pl{animation:tap .35s infinite alternate}.pet[data-s=type] .pr{animation:tap .35s .17s infinite alternate}
+@keyframes tap{to{transform:translateY(-3px)}}
+.pet[data-s=happy] .pet-g{animation:bounce 1.4s ease-in-out infinite}
+.pet[data-s=celebrate] .pet-g{animation:party 2s ease-in-out infinite}
+.pet[data-s=celebrate] .pl,.pet[data-s=celebrate] .pr{animation:cheer .6s infinite alternate}
+.pet[data-s=happy] .tail,.pet[data-s=celebrate] .tail{animation-duration:2.5s}
+@keyframes bounce{50%{transform:translateY(-9px)}}
+@keyframes party{25%{transform:translateY(-14px) rotate(-2deg)}50%{transform:translateY(-2px)}75%{transform:translateY(-10px) rotate(2deg)}}
+@keyframes cheer{to{transform:translateY(-6px)}}
+.pet[data-s=sleep] .eyes{opacity:0}.pet[data-s=sleep] .eyes-closed,.pet[data-s=sleep] .zzz{opacity:1}
+.pet[data-s=sleep] .head{transform:translateY(11px) rotate(-6deg)}
+.pet[data-s=sleep] .body-g{animation-duration:6s}
+.pet[data-s=sleep] .zzz text{animation:zzz 2.8s ease-in-out infinite}.pet[data-s=sleep] .zzz text+text{animation-delay:1s}
+@keyframes zzz{from{transform:translate(0,12px);opacity:0}50%{opacity:1}to{transform:translate(12px,-18px);opacity:0}}
+@media(prefers-reduced-motion:reduce){body:not(.force) *,body:not(.force) *::before,body:not(.force) *::after{animation:none!important;transition:none!important}body:not(.force) .leaf,body:not(.force) .cloud{display:none}}
+
+select{width:100%;padding:11px 15px;border:2px solid var(--lav);border-radius:16px;background:var(--cream);font:inherit;color:var(--ink)}
+select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,139,209,.2)}
+[hidden]{display:none!important}
+.tabs{grid-template-columns:repeat(5,1fr)}.tabs i{width:calc((100% - 10px)/5)}
+.tabs button{display:flex;flex-direction:column;align-items:center;gap:0;font-size:.68rem;padding:6px 1px}.tabs button span{font-size:1.2rem}
+.ringbox{position:relative;width:210px;height:210px;margin:0 auto 12px}.ringbox svg{width:100%;height:100%}
+.rbg{fill:none;stroke:var(--lav);stroke-width:16}
+.rfg{fill:none;stroke:var(--pink-d);stroke-width:16;stroke-linecap:round;stroke-dasharray:565.5;transition:stroke-dashoffset .3s linear,stroke .5s}
+.ringbox.brk .rfg{stroke:var(--mint-d)}
+.rtxt{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.rtxt b{font:600 2.6rem Fredoka,sans-serif}.rtxt small{font-weight:700;opacity:.7}
+.ctl{justify-content:center;flex-wrap:wrap;margin-bottom:6px}
+.chips{display:flex;gap:8px;margin:12px 0 8px}
+.chipb{border:0;background:var(--lav);color:var(--ink);font:700 .85rem Nunito,sans-serif;padding:8px 16px;border-radius:16px;cursor:pointer;transition:transform .35s var(--spring),background .25s}
+.chipb:hover{transform:translateY(-2px) scale(1.06);background:var(--pink)}.chipb:active{transform:scale(.94)}
+.cfg input{width:80px;flex:none}.gl{align-self:center;font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sc{background:var(--cream);border-radius:18px;padding:10px 4px;text-align:center;animation:rise .5s var(--spring)}
+.sc i{font-style:normal;font-size:1.3rem;display:block}.sc b{font:600 1.05rem Fredoka,sans-serif}.sc small{display:block;font-size:.7rem;opacity:.7}
+.bar{height:14px;background:var(--lav);border-radius:10px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#f6a3bf,var(--mint-d));border-radius:10px;transition:width .8s var(--spring)}
+.chart{display:flex;gap:8px;align-items:flex-end;height:120px}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;font-size:.72rem;font-weight:700}
+.col .b{width:100%;max-width:30px;border-radius:10px 10px 4px 4px;background:linear-gradient(#f6a3bf,var(--pink-d));transform-origin:bottom;animation:grow .7s var(--spring)}
+@keyframes grow{from{transform:scaleY(0)}}
+.sb{margin-bottom:8px;font-size:.85rem;font-weight:700}.sb .bar{height:10px;margin-top:3px}
+.list .sub{font-size:.72rem;background:var(--lav);padding:2px 9px;border-radius:12px}
+.list small{opacity:.65}
+.chk{width:30px;height:30px;border-radius:50%;border:3px solid var(--lav-d);background:#fff;cursor:pointer;color:#fff;font-size:.85rem;flex:none;transition:transform .4s var(--spring),background .25s}
+.chk[aria-pressed=true]{background:var(--mint-d);border-color:var(--mint-d)}.chk:hover{transform:scale(1.15)}
+.done{text-decoration:line-through;opacity:.55}
+
+.tr{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.toast{z-index:40}
+.banner{width:100%;margin-top:10px;background:var(--lav);padding:10px 16px;border-radius:18px;font-weight:700;text-align:center}
+.modal{position:fixed;inset:0;z-index:30;background:rgba(75,63,92,.45);display:grid;place-items:center;padding:16px;animation:fade .3s}
+@keyframes fade{from{opacity:0}}
+.mcard{background:#fffaf0;border-radius:28px;padding:22px;width:min(400px,100%);box-shadow:0 20px 60px rgba(0,0,0,.25);animation:rise .5s var(--spring);max-height:90vh;overflow:auto;color:var(--ink)}
+.mcard h2{margin-top:0}.mcard form>*{margin-bottom:10px}
+.msg{font-size:.85rem;font-weight:700;min-height:1.2em}.msg.err{color:#c0475f}.msg.ok{color:#3f8a56}
+.lnk{background:none;border:0;color:#7d6cc0;font:700 .85rem Nunito,sans-serif;cursor:pointer;text-decoration:underline;padding:4px}
+.admin{position:fixed;inset:0;z-index:20;background:#2d2540;color:#f4effa;display:flex;overflow:auto}
+.ad-side{width:220px;background:#231c33;padding:18px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.ad-side b{font:600 1.2rem Fredoka,sans-serif;margin-bottom:12px}
+.ad-side button{background:none;border:0;color:#cfc4e6;text-align:left;padding:11px 14px;border-radius:14px;font:700 .95rem Nunito,sans-serif;cursor:pointer;transition:background .25s,transform .3s var(--spring)}
+.ad-side button:hover{background:#3a3052;transform:translateX(4px)}.ad-side button.on{background:#ef8fb0;color:#2d2540}
+.ad-main{flex:1;padding:24px;min-width:0}
+.ad-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.ac{background:#3a3052;border-radius:20px;padding:16px}.ac b{font:600 1.7rem Fredoka,sans-serif;display:block}.ac small{opacity:.7}
+.admin input,.admin select{background:#3a3052;border-color:#52446f;color:#f4effa}
+.admin table{width:100%;border-collapse:collapse;font-size:.88rem}.tw{overflow-x:auto}
+.admin th,.admin td{text-align:left;padding:10px 8px;border-bottom:1px solid #52446f;white-space:nowrap}
+.dlg{position:absolute;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:2}.dlg>div{background:#3a3052;padding:22px;border-radius:22px;max-width:340px}
+@media(max-width:800px){.admin{flex-direction:column}.ad-side{width:auto;flex-direction:row;flex-wrap:wrap}.ad-side b{width:100%;margin:0}}
+</style>
+</head>
+<body>
+<div class="scene" aria-hidden="true">
+  <div class="sun"></div><div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+  <svg viewBox="0 0 1440 600" preserveAspectRatio="xMidYMax slice">
+    <path d="M0 330 Q260 200 560 320 T1120 270 T1440 320 V600 H0Z" fill="#dcd2f3"/>
+    <path d="M0 400 Q320 290 640 390 T1260 350 T1440 390 V600 H0Z" fill="#c4e4c4"/>
+    <g><rect x="136" y="330" width="16" height="70" rx="6" fill="#b58a6a"/><circle cx="144" cy="310" r="52" fill="#8fcf9c"/><circle cx="116" cy="336" r="34" fill="#7bc28b"/><circle cx="176" cy="338" r="32" fill="#7bc28b"/></g>
+    <g><rect x="1240" y="318" width="18" height="84" rx="6" fill="#b58a6a"/><circle cx="1249" cy="296" r="58" fill="#f6b9cb"/><circle cx="1214" cy="326" r="36" fill="#f2a4bc"/><circle cx="1286" cy="328" r="34" fill="#f2a4bc"/></g>
+    <path d="M0 470 Q360 390 760 460 T1440 440 V600 H0Z" fill="#a7d8a4"/>
+    <g fill="#fff"><circle cx="300" cy="520" r="7"/><circle cx="820" cy="540" r="7"/><circle cx="1100" cy="510" r="7"/></g><g fill="#ffd45e"><circle cx="300" cy="520" r="3"/><circle cx="820" cy="540" r="3"/><circle cx="1100" cy="510" r="3"/></g>
+  </svg>
+  <div id="leaves"></div>
+</div>
+
+<div class="app">
+  <section class="left" aria-label="Your pet">
+    <div class="top"><div class="logo"><b>🐾</b> StudyPaws</div><div class="tr"><button class="pill" id="acctBtn">👤 Sign in</button><button class="pill" id="motionBtn" aria-pressed="false">✨ Animations: auto</button></div></div>
+    <div class="banner" id="banner" hidden></div>
+    <div class="bubble" id="status" aria-live="polite"></div>
+    <div id="petWrap"></div>
+    <div class="tag" id="tag">Mochi</div>
+  </section>
+
+  <aside class="panel">
+    <div class="tabs" role="tablist"><i id="ind"></i>
+      <button role="tab" aria-selected="true" data-t="0"><span>🐾</span>Pet</button>
+      <button role="tab" aria-selected="false" data-t="1"><span>👗</span>Wear</button>
+      <button role="tab" aria-selected="false" data-t="2"><span>📚</span>Subjects</button>
+      <button role="tab" aria-selected="false" data-t="3"><span>⏱️</span>Focus</button>
+      <button role="tab" aria-selected="false" data-t="4"><span>📊</span>Stats</button>
+    </div>
+
+    <div class="sheet on" role="tabpanel">
+      <h2>Choose a friend</h2><div class="avatars" id="avatars" role="group" aria-label="Choose a pet"></div>
+      <label for="name">Pet name</label><input id="name" maxlength="16" placeholder="e.g. Mochi">
+      <h2 style="margin-top:18px">What are they doing?</h2><div class="tiles" id="actions" role="group" aria-label="Pet actions"></div>
+    </div>
+
+    <div class="sheet" role="tabpanel">
+      <h2>Tap to wear or remove</h2><div class="tiles three" id="wardrobe" role="group" aria-label="Accessories"></div>
+      <p class="hint">Mix and match as many as you like.</p>
+      <button class="btn soft sm" id="clearAcc" style="margin-top:10px">Take everything off</button>
+    </div>
+
+    <div class="sheet" role="tabpanel">
+      <h2>What are you studying?</h2>
+      <div class="row"><input id="subIn" maxlength="40" placeholder="e.g. General Chemistry" aria-label="New subject"><button class="btn" id="subAdd">Add</button></div>
+      <ul class="list" id="subList"></ul>
+      <div class="empty" id="subEmpty">🌱<p>No subjects yet. Type one above!</p></div>
+    </div>
+    <div class="sheet" role="tabpanel">
+      <div class="ringbox" id="ringbox"><svg viewBox="0 0 220 220" aria-hidden="true"><circle class="rbg" cx="110" cy="110" r="90"/><circle class="rfg" id="ring" cx="110" cy="110" r="90" transform="rotate(-90 110 110)"/></svg>
+        <div class="rtxt"><small id="kind">Focus</small><b id="clock" role="timer">25:00</b></div></div>
+      <div class="row ctl"><button class="btn" id="tMain">Start</button><button class="btn soft" id="tReset">Reset</button><button class="btn soft" id="tSkip" hidden>Skip break</button></div>
+      <label for="tSub">Subject for this session</label><select id="tSub"></select>
+      <div class="chips"><button class="chipb" data-f="25" data-b="5">25 / 5</button><button class="chipb" data-f="50" data-b="10">50 / 10</button></div>
+      <div class="row cfg"><input type="number" id="cf" min="1" max="240" aria-label="Focus minutes"><input type="number" id="cb" min="1" max="60" aria-label="Break minutes"><button class="btn soft sm" id="cSet">Set custom</button></div>
+      <p class="hint">Focus minutes, then break minutes. Changes apply to the next session.</p>
+      <h2 style="margin-top:18px">Tasks</h2>
+      <div class="row"><input id="tkIn" maxlength="80" placeholder="Add a task" aria-label="New task"><button class="btn" id="tkAdd">Add</button></div>
+      <select id="tkSub" aria-label="Task subject" style="margin-top:8px"></select>
+      <ul class="list" id="tkList"></ul><div class="empty" id="tkEmpty">✅<p>No tasks yet. Add one above!</p></div>
+    </div>
+
+    <div class="sheet" role="tabpanel">
+      <div class="stats" id="stats"></div>
+      <h2 style="margin-top:16px">Today's goal</h2>
+      <div class="row"><input type="number" id="goal" min="5" max="1440" aria-label="Daily goal in minutes"><span class="gl">minutes</span></div>
+      <div class="bar" style="margin-top:8px"><i id="goalBar" style="width:0"></i></div><p class="hint" id="goalTxt"></p>
+      <h2>Last 7 days</h2><div class="chart" id="chart"></div>
+      <h2>By subject</h2><div id="bySub"></div>
+      <h2>Recent sessions</h2><ul class="list" id="hist"></ul><div class="empty" id="histEmpty">🍃<p>Finish a focus session to see it here.</p></div>
+      <button class="btn red sm" id="wipe">Reset tasks and history</button>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="modal" id="modal" hidden><div class="mcard" id="mcard" role="dialog" aria-modal="true"></div></div>
+<div class="admin" id="admin" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const PETS = {
+  cat:{l:'Cat',b:'#f9d9c6',h:'#fff1e6',bel:'#fff6ee',ear:'#f9d9c6',in:'#f5a3b8'},
+  bunny:{l:'Bunny',b:'#fbeaf0',h:'#fff',bel:'#fff',ear:'#fbeaf0',in:'#f7aac0'},
+  bear:{l:'Bear',b:'#d9b08a',h:'#efd2b5',bel:'#f3dcc3',ear:'#d9b08a',in:'#b98c66'},
+  panda:{l:'Panda',b:'#fff',h:'#fff',bel:'#f4f1f6',ear:'#3b3340',in:'#3b3340'},
+  fox:{l:'Fox',b:'#f6a85f',h:'#ffc98f',bel:'#fff3e4',ear:'#f6a85f',in:'#fff3e4'},
+  frog:{l:'Frog',b:'#a9dc9f',h:'#d2f1c8',bel:'#eefbe6',ear:'#a9dc9f',in:'#8ccb82'}
+};
+const ACTIONS = {idle:['🌿','Relax','Chill out'],look:['👀','Look','Peek around'],study:['✏️','Study','Take notes'],read:['📖','Read','Open a book'],type:['💻','Type','Use laptop'],happy:['😊','Happy','Feel good'],celebrate:['🎉','Party','Hooray!'],sleep:['😴','Sleep','Nap time']};
+const ACCS = {bow:['🎀','Bow'],glasses:['👓','Glasses'],hat:['🎩','Top hat'],scarf:['🧣','Scarf'],flowers:['🌸','Flowers'],star:['⭐','Star clip']};
+
+// ----- SVG pet (built only from fixed strings, never from user text) -----
+function ears(k, c) {
+  if (k === 'cat' || k === 'fox') return `<path d="M42 78 L46 14 L98 46Z M158 78 L154 14 L102 46Z" fill="${c.ear}"/><path d="M56 62 L56 32 L82 48Z M144 62 L144 32 L118 48Z" fill="${c.in}"/>${k === 'fox' ? '<path d="M50 56 L48 22 L72 38Z M150 56 L152 22 L128 38Z" fill="#3b3340"/>' : ''}`;
+  if (k === 'bunny') return `<ellipse cx="72" cy="20" rx="16" ry="46" fill="${c.ear}"/><ellipse cx="128" cy="20" rx="16" ry="46" fill="${c.ear}"/><ellipse cx="72" cy="24" rx="8" ry="32" fill="${c.in}"/><ellipse cx="128" cy="24" rx="8" ry="32" fill="${c.in}"/>`;
+  if (k === 'frog') return `<circle cx="62" cy="48" r="22" fill="${c.ear}"/><circle cx="138" cy="48" r="22" fill="${c.ear}"/>`;
+  return `<circle cx="56" cy="54" r="23" fill="${c.ear}"/><circle cx="144" cy="54" r="23" fill="${c.ear}"/><circle cx="56" cy="56" r="11" fill="${c.in}"/><circle cx="144" cy="56" r="11" fill="${c.in}"/>`;
+}
+function tail(k, c) {
+  if (k === 'cat') return `<path d="M140 192 Q192 192 186 142 Q184 130 194 126" fill="none" stroke="${c.b}" stroke-width="14" stroke-linecap="round"/>`;
+  if (k === 'fox') return `<path d="M140 198 Q205 202 200 142 Q170 152 140 176Z" fill="${c.b}"/><path d="M200 142 Q186 146 176 152 Q196 172 200 142Z" fill="#fff"/>`;
+  if (k === 'frog') return '';
+  return `<circle cx="150" cy="200" r="${k === 'bunny' ? 16 : 12}" fill="${k === 'panda' ? '#3b3340' : k === 'bear' ? c.in : '#fff'}"/>`;
+}
+const flowerDots = [[60,58,'#f08fae'],[80,45,'#ffd45e'],[100,41,'#b6a8e6'],[120,45,'#f08fae'],[140,58,'#ffd45e']]
+  .map(([x,y,f]) => `<circle cx="${x}" cy="${y}" r="8" fill="${f}"/><circle cx="${x}" cy="${y}" r="3" fill="#fff"/>`).join('');
+const ACC_SVG = {
+  bow: '<g transform="translate(142 48)"><path d="M0 0 L-24 -14 L-24 14Z M0 0 L24 -14 L24 14Z" fill="#f78fb3"/><circle r="7" fill="#e8628f"/></g>',
+  glasses: '<g fill="rgba(255,255,255,.4)" stroke="#6b5a7a" stroke-width="3.5"><circle cx="74" cy="100" r="19"/><circle cx="126" cy="100" r="19"/><path d="M93 100 H107"/></g>',
+  hat: '<g><ellipse cx="100" cy="44" rx="44" ry="9" fill="#4b3f5e"/><rect x="72" y="2" width="56" height="42" rx="6" fill="#5b4d70"/><rect x="72" y="28" width="56" height="9" fill="#ef8fb0"/></g>',
+  flowers: `<g>${flowerDots}</g>`,
+  star: '<g transform="translate(60 56) rotate(-15)"><path d="M0 -13 L4 -4 L13 -3 L6 3 L8 13 L0 8 L-8 13 L-6 3 L-13 -3 L-4 -4Z" fill="#ffd45e" stroke="#f0b429" stroke-width="2" stroke-linejoin="round"/></g>'
+};
+function petSVG(k) {
+  const c = PETS[k], g = 'g' + k, pd = k === 'panda', ink = '#3a2d3e';
+  const patch = pd ? '<ellipse cx="74" cy="100" rx="17" ry="20" fill="#3b3340" transform="rotate(25 74 100)"/><ellipse cx="126" cy="100" rx="17" ry="20" fill="#3b3340" transform="rotate(-25 126 100)"/>' : '';
+  const muzzle = k === 'fox' ? '<path d="M38 112 Q70 138 100 124 Q130 138 162 112 Q150 152 100 154 Q50 152 38 112Z" fill="#fff3e4"/>' : k === 'frog' ? '' : `<ellipse cx="100" cy="122" rx="24" ry="17" fill="${c.bel}"/>`;
+  const eye = x => `<g class="eye"><ellipse cx="${x}" cy="100" rx="11" ry="14" fill="${ink}"/><circle cx="${x+4}" cy="95" r="4.5" fill="#fff"/><circle cx="${x-4}" cy="105" r="2.2" fill="#fff"/></g>`;
+  const shut = x => `<path d="M${x-10} 100 q10 9 20 0"/>`;
+  const nose = k === 'frog' ? '' : `<ellipse cx="100" cy="115" rx="6" ry="4.5" fill="${pd || k === 'fox' ? '#3b3340' : '#e58aa5'}"/>`;
+  const mouth = k === 'frog' ? '<path d="M68 120 Q100 148 132 120" fill="none" stroke="#5a8f55" stroke-width="3.5" stroke-linecap="round"/>' : '<path d="M90 124 q5 7 10 0 q5 7 10 0" fill="none" stroke="#6b4a5a" stroke-width="2.8" stroke-linecap="round"/>';
+  const whisk = k === 'cat' ? '<g stroke="#c9a9a0" stroke-width="2" stroke-linecap="round"><path d="M44 118 L66 122 M44 130 L66 128 M156 118 L134 122 M156 130 L134 128"/></g><g stroke="#e9b8a0" stroke-width="4" stroke-linecap="round"><path d="M100 44 V58 M86 47 L88 58 M114 47 L112 58"/></g>' : '';
+  const paw = pd ? '#3b3340' : c.b;
+  const accHead = ['bow','glasses','hat','flowers','star'].map(a => `<g class="acc" data-acc="${a}">${ACC_SVG[a]}</g>`).join('');
+  return `<svg class="pet" data-s="idle" viewBox="-10 -20 220 250" role="img" aria-label="${c.l}">
+<defs><radialGradient id="${g}" cx="40%" cy="30%" r="75%"><stop offset="0" stop-color="${c.h}"/><stop offset="1" stop-color="${c.b}"/></radialGradient></defs>
+<ellipse cx="100" cy="222" rx="62" ry="8" fill="rgba(80,60,100,.12)"/>
+<g class="pet-g"><g class="body-g">
+<g class="tail">${tail(k, c)}</g>
+<ellipse cx="100" cy="182" rx="50" ry="42" fill="url(#${g})"/><ellipse cx="100" cy="190" rx="30" ry="28" fill="${c.bel}" opacity=".9"/>
+<ellipse cx="72" cy="216" rx="17" ry="9" fill="${paw}"/><ellipse cx="128" cy="216" rx="17" ry="9" fill="${paw}"/>
+<g class="head">${ears(k, c)}<ellipse cx="100" cy="98" rx="68" ry="58" fill="url(#${g})"/>${patch}${muzzle}${whisk}
+<g class="eyes">${eye(74)}${eye(126)}</g>
+<g class="eyes-closed" fill="none" stroke="${ink}" stroke-width="3.5" stroke-linecap="round">${shut(74)}${shut(126)}</g>
+<ellipse cx="50" cy="118" rx="10" ry="6.5" fill="#f9a8c0" opacity=".65"/><ellipse cx="150" cy="118" rx="10" ry="6.5" fill="#f9a8c0" opacity=".65"/>
+${nose}${mouth}${accHead}</g>
+<g class="acc" data-acc="scarf"><path d="M58 140 Q100 170 142 140 L144 158 Q100 184 56 158Z" fill="#ef8fb0"/><path d="M124 156 L134 190 L150 184 L140 152Z" fill="#e0709a"/></g>
+<g class="book"><rect x="58" y="176" width="43" height="32" rx="4" fill="#b6a8e6"/><rect x="99" y="176" width="43" height="32" rx="4" fill="#9b8bd0"/><path d="M100 176 V208" stroke="#fff" stroke-width="2.5"/><path d="M66 186 h26 M66 193 h22 M108 186 h26 M108 193 h20" stroke="#fff" stroke-width="2" opacity=".7"/></g>
+<g class="laptop"><path d="M54 208 H146 L138 174 H62Z" fill="#d8d2e8"/><rect x="68" y="178" width="64" height="24" rx="3" fill="#7fc0e6"/></g>
+<ellipse class="pl" cx="70" cy="200" rx="14" ry="10" fill="${paw}"/><ellipse class="pr" cx="130" cy="200" rx="14" ry="10" fill="${paw}"/>
+<rect class="pencil" x="136" y="176" width="7" height="30" rx="2" fill="#f4c542" transform="rotate(25 140 190)"/>
+</g></g>
+<g class="zzz" font-family="Georgia" font-weight="bold" fill="#9a8bd1"><text x="160" y="30" font-size="26">Z</text><text x="178" y="6" font-size="18">z</text></g></svg>`;
+}
+
+// ----- saved data -----
+const KEY = 'studypaws.v3';
+let S = {pet:'cat', name:'Mochi', wear:[], subjectId:null, subjects:[], motion:'auto'};
+try {
+  const d = JSON.parse(localStorage.getItem(KEY));
+  if (d && typeof d === 'object') {
+    if (PETS[d.pet]) S.pet = d.pet;
+    if (typeof d.name === 'string') S.name = d.name.slice(0, 16);
+    if (Array.isArray(d.wear)) S.wear = d.wear.filter(a => ACCS[a]);
+    if (d.motion === 'on') S.motion = 'on';
+    if (Array.isArray(d.subjects)) S.subjects = d.subjects.filter(s => s && typeof s.name === 'string' && s.name.trim()).map(s => ({id:String(s.id), name:s.name.trim().slice(0, 40)}));
+    S.subjectId = S.subjects.some(s => s.id === d.subjectId) ? d.subjectId : null;
+  }
+} catch (e) { /* no storage or broken data: use defaults */ }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } cloudSoon(); };
+let tt;
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2400); }
+const subj = () => S.subjects.find(s => s.id === S.subjectId);
+
+// ----- pet display -----
+let cur = 'idle', timer;
+const svg = () => document.querySelector('#petWrap > svg');
+function renderPet() {
+  $('petWrap').innerHTML = petSVG(S.pet) + '<div class="fx" id="fx" aria-hidden="true"></div>';
+  const s = svg(); s.classList.add('instant'); applyWear(); void s.offsetWidth; s.classList.remove('instant');
+  setAction(cur, true);
+}
+function applyWear() { svg().querySelectorAll('.acc').forEach(g => g.classList.toggle('on', S.wear.includes(g.dataset.acc))); }
+function setAction(a, quiet) {
+  cur = a; const s = svg(); if (s) s.dataset.s = a;
+  document.querySelectorAll('#actions .tile').forEach(b => b.setAttribute('aria-pressed', b.dataset.a === a));
+  const n = S.name || PETS[S.pet].l, sb = subj() ? subj().name : 'something fun';
+  $('tag').textContent = n;
+  $('status').textContent = {idle:`${n} is relaxing.`, look:`${n} is looking around...`, study:`${n} is taking notes on ${sb}!`, read:`${n} is reading about ${sb}.`, type:`${n} is typing up ${sb}.`, happy:`${n} is so happy!`, celebrate:`${n} is celebrating! 🎉`, sleep:`${n} is napping. Zzz...`}[a];
+  clearTimeout(timer);
+  if (a === 'happy' || a === 'celebrate') { hearts(a === 'celebrate' ? ['⭐','💖','✨'] : ['💖']); timer = setTimeout(() => setAction(baseAction()), 4000); }
+  else if (a === 'idle') timer = setTimeout(() => { if (cur === 'idle') { setAction('look', true); timer = setTimeout(() => setAction('idle'), 2800); } }, 7000);
+}
+function hearts(list) {
+  const fx = $('fx'); if (!fx) return;
+  for (let i = 0; i < 5; i++) {
+    const e = document.createElement('span'); e.className = 'h'; e.textContent = list[i % list.length];
+    e.style.left = (25 + Math.random() * 50) + '%'; e.style.animationDelay = i * .15 + 's'; fx.appendChild(e); setTimeout(() => e.remove(), 2700);
+  }
+}
+function sparkles() {
+  const fx = $('fx'); if (!fx) return;
+  for (let i = 0; i < 6; i++) {
+    const e = document.createElement('span'); e.className = 'sp'; e.textContent = i % 2 ? '✨' : '⭐';
+    const a = i / 6 * Math.PI * 2;
+    e.style.setProperty('--dx', Math.cos(a) * 70 + 'px'); e.style.setProperty('--dy', Math.sin(a) * 50 + 'px');
+    fx.appendChild(e); setTimeout(() => e.remove(), 1000);
+  }
+}
+
+// ----- panel: pet, wardrobe -----
+function build() {
+  Object.keys(PETS).forEach(k => {
+    const b = document.createElement('button'); b.dataset.p = k; b.setAttribute('aria-label', 'Choose ' + PETS[k].l);
+    b.innerHTML = petSVG(k).replace('class="pet"', 'class="mini"');
+    b.onclick = () => { S.pet = k; save(); renderPet(); mark(); setAction('happy'); };
+    $('avatars').appendChild(b);
+  });
+  Object.entries(ACTIONS).forEach(([k, [ic, lb, cp]]) => {
+    const b = document.createElement('button'); b.className = 'tile'; b.dataset.a = k;
+    b.innerHTML = `<i>${ic}</i><span>${lb}<small>${cp}</small></span>`; b.onclick = () => setAction(k);
+    $('actions').appendChild(b);
+  });
+  Object.entries(ACCS).forEach(([k, [ic, lb]]) => {
+    const b = document.createElement('button'); b.className = 'tile'; b.dataset.acc = k;
+    b.innerHTML = `<i>${ic}</i><span>${lb}</span><em class="ck" style="font-style:normal">✓</em>`; b.onclick = () => toggleAcc(k, b);
+    $('wardrobe').appendChild(b);
+  });
+  $('name').value = S.name;
+  $('name').oninput = e => { S.name = e.target.value.trim().slice(0, 16); save(); setAction(cur, true); };
+  $('clearAcc').onclick = () => { S.wear = []; save(); applyWear(); markAcc(); toast('All accessories removed.'); };
+  mark(); markAcc();
+}
+function mark() { document.querySelectorAll('#avatars button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === S.pet)); }
+function markAcc() { document.querySelectorAll('#wardrobe .tile').forEach(b => b.setAttribute('aria-pressed', S.wear.includes(b.dataset.acc))); }
+function toggleAcc(k, tile) {
+  const on = !S.wear.includes(k);
+  S.wear = on ? [...S.wear, k] : S.wear.filter(a => a !== k);
+  save(); applyWear(); markAcc();
+  tile.classList.remove('pop'); void tile.offsetWidth; tile.classList.add('pop');
+  const s = svg(); s.classList.remove('react'); void s.offsetWidth; s.classList.add('react');
+  if (on) sparkles();
+  toast(`${S.name || PETS[S.pet].l} ${on ? 'put on' : 'took off'} the ${ACCS[k][1].toLowerCase()}`);
+}
+
+// ----- subjects -----
+let editing = null, removing = null;
+const clean = v => v.trim().replace(/\s+/g, ' ');
+function addSubject() {
+  const n = clean($('subIn').value);
+  if (!n) return toast('Please type a subject first.');
+  const d = S.subjects.find(s => s.name.toLowerCase() === n.toLowerCase());
+  if (d) { pick(d.id); $('subIn').value = ''; return toast(`"${d.name}" is already there, so I selected it.`); }
+  const s = {id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: n};
+  S.subjects.push(s); if (!S.subjectId) S.subjectId = s.id;
+  $('subIn').value = ''; save(); renderSubs(); toast(`Added "${n}"!`); setAction('happy');
+}
+function pick(id) { S.subjectId = id; save(); renderSubs(); setAction(cur, true); }
+function renderSubs() {
+  const ul = $('subList'); ul.innerHTML = ''; $('subEmpty').style.display = S.subjects.length ? 'none' : 'block';
+  const btn = (t, c, f, lbl) => { const b = document.createElement('button'); b.className = 'btn sm ' + c; b.textContent = t; b.setAttribute('aria-label', lbl); b.onclick = f; return b; };
+  S.subjects.forEach(s => {
+    const li = document.createElement('li'); if (s.id === S.subjectId) li.className = 'cur';
+    if (editing === s.id) {
+      const inp = document.createElement('input'); inp.value = s.name; inp.maxLength = 40; inp.setAttribute('aria-label', 'Rename subject');
+      const ok = () => {
+        const n = clean(inp.value);
+        if (!n) return toast('Name cannot be empty.');
+        if (S.subjects.some(x => x.id !== s.id && x.name.toLowerCase() === n.toLowerCase())) return toast('You already have that subject.');
+        s.name = n; editing = null; save(); renderSubs(); setAction(cur, true);
+      };
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') { editing = null; renderSubs(); } };
+      li.append(inp, btn('Save', '', ok, 'Save name'), btn('Cancel', 'soft', () => { editing = null; renderSubs(); }, 'Cancel'));
+      setTimeout(() => inp.focus(), 0);
+    } else if (removing === s.id) {
+      const m = document.createElement('span'); m.className = 'nm'; m.textContent = `Remove "${s.name}"?`;
+      li.append(m, btn('Yes', 'red', () => { S.subjects = S.subjects.filter(x => x.id !== s.id); if (S.subjectId === s.id) S.subjectId = S.subjects[0] ? S.subjects[0].id : null; removing = null; save(); renderSubs(); setAction(cur, true); }, 'Confirm remove'), btn('No', 'soft', () => { removing = null; renderSubs(); }, 'Keep subject'));
+    } else {
+      const n = document.createElement('span'); n.className = 'nm'; n.textContent = s.name; // textContent keeps user text safe
+      li.append(n, btn(s.id === S.subjectId ? 'Selected ✓' : 'Select', 'soft', () => pick(s.id), 'Select ' + s.name), btn('Rename', 'soft', () => { editing = s.id; removing = null; renderSubs(); }, 'Rename ' + s.name), btn('Remove', 'red', () => { removing = s.id; editing = null; renderSubs(); }, 'Remove ' + s.name));
+    }
+    ul.appendChild(li);
+  });
+  syncSel();
+}
+
+// ----- tabs, motion switch, leaves, start -----
+function tab(i) {
+  document.querySelectorAll('.sheet').forEach((p, n) => p.classList.toggle('on', n === i));
+  document.querySelectorAll('.tabs button').forEach((b, n) => b.setAttribute('aria-selected', n === i));
+  $('ind').style.transform = `translateX(${i * 100}%)`;
+}
+function motion() {
+  document.body.classList.toggle('force', S.motion === 'on');
+  $('motionBtn').setAttribute('aria-pressed', S.motion === 'on');
+  $('motionBtn').textContent = S.motion === 'on' ? '✨ Animations: always on' : '✨ Animations: auto';
+}
+
+// ===== Stage 2: timer (timestamp based), tasks, stats =====
+const DKEY = 'studypaws.v3.study';
+let D = {tasks: [], history: [], goal: 60, cfg: {focus: 25, brk: 5}, timer: null}, T;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+const saveD = () => { try { localStorage.setItem(DKEY, JSON.stringify(D)); } catch (e) { /* storage unavailable */ } cloudSoon(); };
+const subName = id => { const s = S.subjects.find(x => x.id === id); return s ? s.name : null; };
+function loadD() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DKEY));
+    if (d && typeof d === 'object') {
+      if (Array.isArray(d.tasks)) D.tasks = d.tasks.filter(t => t && typeof t.text === 'string' && t.text.trim()).map(t => ({id: String(t.id), text: t.text.slice(0, 80), done: !!t.done, subjectId: t.subjectId ? String(t.subjectId) : null}));
+      if (Array.isArray(d.history)) D.history = d.history.filter(h => h && Number(h.ms) > 0 && Number(h.at) > 0).map(h => ({id: String(h.id), subjectId: h.subjectId ? String(h.subjectId) : null, name: typeof h.name === 'string' ? h.name.slice(0, 40) : '', ms: Number(h.ms), at: Number(h.at)}));
+      const g = Number(d.goal); if (g >= 5 && g <= 1440) D.goal = Math.round(g);
+      if (d.cfg) { const f = Number(d.cfg.focus), b = Number(d.cfg.brk); if (f >= 1 && f <= 240) D.cfg.focus = Math.round(f); if (b >= 1 && b <= 60) D.cfg.brk = Math.round(b); }
+      const t = d.timer;
+      if (t && ['focus', 'break'].includes(t.kind) && ['idle', 'running', 'paused'].includes(t.status) && Number(t.total) > 0)
+        D.timer = {kind: t.kind, status: t.status, total: Number(t.total), left: Number(t.left) || Number(t.total), endAt: Number(t.endAt) || 0, sid: String(t.sid || uid()), subjectId: t.subjectId ? String(t.subjectId) : null};
+    }
+  } catch (e) { /* broken data: start fresh */ }
+  T = D.timer || {kind: 'focus', status: 'idle', total: D.cfg.focus * 60000, left: D.cfg.focus * 60000, endAt: 0, sid: uid(), subjectId: null};
+  if (T.status === 'running' && !T.endAt) T.status = 'paused';
+  D.timer = T;
+}
+// Remaining time comes from the clock (endAt), so inactive tabs never miscount.
+const tLeft = () => T.status === 'running' ? Math.max(0, T.endAt - Date.now()) : T.left;
+const baseAction = () => T && T.status === 'running' ? (T.kind === 'focus' ? 'study' : 'sleep') : 'idle';
+const petSync = () => setAction(baseAction());
+const mmss = ms => { const s = Math.ceil(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+const fmt = ms => { if (ms < 60000) return Math.round(ms / 1000) + 's'; const m = Math.round(ms / 60000); return m >= 60 ? Math.floor(m / 60) + 'h ' + (m % 60) + 'm' : m + ' min'; };
+const RING = 2 * Math.PI * 90;
+function drawTimer() {
+  const l = tLeft();
+  $('clock').textContent = mmss(l);
+  $('ring').style.strokeDashoffset = RING * (1 - l / T.total);
+  $('kind').textContent = T.kind === 'focus' ? 'Focus' : 'Break';
+  $('ringbox').classList.toggle('brk', T.kind === 'break');
+  $('tMain').textContent = T.status === 'running' ? 'Pause' : T.status === 'paused' ? 'Resume' : (T.kind === 'focus' ? 'Start' : 'Start break');
+  $('tSkip').hidden = T.kind !== 'break';
+  document.title = T.status === 'idle' ? 'StudyPaws' : mmss(l) + ' · StudyPaws';
+}
+function notify(t, b) { try { if ('Notification' in window && Notification.permission === 'granted') new Notification(t, {body: b}); } catch (e) { /* not allowed here */ } }
+function startTimer(auto) {
+  if (T.status === 'running') return;
+  if (T.status === 'idle') { T.left = T.total; T.sid = uid(); T.subjectId = T.kind === 'focus' ? S.subjectId : null; }
+  T.endAt = Date.now() + T.left; T.status = 'running';
+  if (!auto) { try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) { /* ignore */ } }
+  saveD(); petSync(); drawTimer();
+}
+function pauseTimer() { T.left = tLeft(); T.status = 'paused'; saveD(); petSync(); drawTimer(); }
+function resetTimer() { T.status = 'idle'; T.kind = 'focus'; T.total = D.cfg.focus * 60000; T.left = T.total; T.sid = uid(); saveD(); petSync(); drawTimer(); }
+function finishTimer() {
+  const late = Date.now() - T.endAt > 5000;
+  let recorded = false;
+  if (T.kind === 'focus') {
+    if (!D.history.some(h => h.id === T.sid)) { // the session id prevents duplicate records
+      D.history.push({id: T.sid, subjectId: T.subjectId, name: subName(T.subjectId) || '', ms: T.total, at: T.endAt}); recorded = true;
+    }
+    T.kind = 'break'; T.total = D.cfg.brk * 60000; T.left = T.total; T.sid = uid(); T.status = 'idle';
+    if (!late) startTimer(true);
+  } else {
+    T.kind = 'focus'; T.total = D.cfg.focus * 60000; T.left = T.total; T.sid = uid(); T.status = 'idle';
+    toast('Break is over. Ready for another round?'); notify('Break over', 'Ready for another focus session?');
+  }
+  saveD(); petSync(); drawTimer(); renderStats();
+  if (recorded) {
+    const n = D.history.length, mile = n % 5 === 0;
+    setAction('celebrate'); sparkles();
+    if (mile) { setTimeout(sparkles, 400); setTimeout(sparkles, 800); }
+    toast(mile ? `🏆 Milestone! ${n} sessions completed!` : 'Session complete! Great job 🎉');
+    notify('Session complete', mile ? `Milestone: ${n} sessions!` : 'Time for a break.');
+  }
+}
+function tick() { if (T.status === 'running' && tLeft() <= 0) finishTimer(); else drawTimer(); }
+function applyCfg(f, b) {
+  f = Math.round(f); b = Math.round(b);
+  if (!(f >= 1 && f <= 240) || !(b >= 1 && b <= 60)) return toast('Focus: 1-240 minutes. Break: 1-60 minutes.');
+  D.cfg = {focus: f, brk: b}; $('cf').value = f; $('cb').value = b;
+  if (T.status === 'idle') { T.kind = 'focus'; T.total = f * 60000; T.left = T.total; toast(`Set to ${f} / ${b} minutes.`); }
+  else toast('Saved. It applies once you reset or finish this session.');
+  saveD(); drawTimer();
+}
+
+// ----- subject dropdowns -----
+function syncSel() {
+  if (!D) return;
+  [['tSub', false], ['tkSub', true]].forEach(([id, optional]) => {
+    const sel = $(id); if (!sel) return;
+    const keep = sel.value; sel.innerHTML = '';
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = optional ? 'No subject' : (S.subjects.length ? 'No subject' : 'Add subjects in the Subjects tab'); sel.appendChild(o0);
+    S.subjects.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; sel.appendChild(o); });
+    sel.value = id === 'tSub' ? (S.subjectId || '') : (S.subjects.some(s => s.id === keep) ? keep : '');
+  });
+  renderTasks(); renderStats();
+}
+
+// ----- tasks -----
+let editT = null;
+function addTask() {
+  const t = clean($('tkIn').value); if (!t) return toast('Type a task first.');
+  D.tasks.push({id: uid(), text: t.slice(0, 80), done: false, subjectId: $('tkSub').value || null});
+  $('tkIn').value = ''; saveD(); renderTasks(); renderStats();
+}
+function renderTasks() {
+  const ul = $('tkList'); ul.innerHTML = ''; $('tkEmpty').style.display = D.tasks.length ? 'none' : 'block';
+  const btn = (t, c, f, l) => { const b = document.createElement('button'); b.className = 'btn sm ' + c; b.textContent = t; b.setAttribute('aria-label', l); b.onclick = f; return b; };
+  D.tasks.forEach(t => {
+    const li = document.createElement('li');
+    if (editT === t.id) {
+      const inp = document.createElement('input'); inp.value = t.text; inp.maxLength = 80; inp.setAttribute('aria-label', 'Edit task');
+      const ok = () => { const v = clean(inp.value); if (!v) return toast('A task cannot be empty.'); t.text = v; editT = null; saveD(); renderTasks(); };
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') { editT = null; renderTasks(); } };
+      li.append(inp, btn('Save', '', ok, 'Save task'), btn('Cancel', 'soft', () => { editT = null; renderTasks(); }, 'Cancel'));
+      setTimeout(() => inp.focus(), 0);
+    } else {
+      const c = document.createElement('button'); c.className = 'chk'; c.textContent = '✓'; c.setAttribute('aria-pressed', t.done); c.setAttribute('aria-label', (t.done ? 'Mark not done: ' : 'Mark done: ') + t.text);
+      c.onclick = () => { t.done = !t.done; saveD(); renderTasks(); renderStats(); if (t.done) { setAction('happy'); toast('Task complete! ' + (S.name || PETS[S.pet].l) + ' is proud of you 💖'); } };
+      const n = document.createElement('span'); n.className = 'nm' + (t.done ? ' done' : ''); n.textContent = t.text;
+      li.append(c, n);
+      const sn = subName(t.subjectId); if (sn) { const s = document.createElement('span'); s.className = 'sub'; s.textContent = sn; li.appendChild(s); }
+      li.append(btn('Edit', 'soft', () => { editT = t.id; renderTasks(); }, 'Edit ' + t.text), btn('Delete', 'red', () => { D.tasks = D.tasks.filter(x => x.id !== t.id); saveD(); renderTasks(); renderStats(); }, 'Delete ' + t.text));
+    }
+    ul.appendChild(li);
+  });
+}
+
+// ----- stats (calculated only from saved sessions and tasks) -----
+function renderStats() {
+  if (!$('stats')) return;
+  const byDay = {}; let total = 0;
+  D.history.forEach(h => { const k = dayKey(h.at); byDay[k] = (byDay[k] || 0) + h.ms; total += h.ms; });
+  const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return {k: dayKey(d.getTime()), l: d.toLocaleDateString(undefined, {weekday: 'short'}).slice(0, 2)}; });
+  const vals = days.map(d => byDay[d.k] || 0), week = vals.reduce((a, b) => a + b, 0), today = byDay[dayKey(Date.now())] || 0;
+  let streak = 0; const sd = new Date(); if (!byDay[dayKey(sd.getTime())]) sd.setDate(sd.getDate() - 1);
+  while (byDay[dayKey(sd.getTime())]) { streak++; sd.setDate(sd.getDate() - 1); }
+  const cards = [['🔥', 'Day streak', streak], ['☀️', 'Today', fmt(today)], ['📅', 'This week', fmt(week)], ['⏳', 'Total focus', fmt(total)], ['🎯', 'Sessions', D.history.length], ['✅', 'Tasks done', D.tasks.filter(t => t.done).length]];
+  $('stats').innerHTML = cards.map(([i, l, v]) => `<div class="sc"><i>${i}</i><b>${v}</b><small>${l}</small></div>`).join('');
+  $('goal').value = D.goal;
+  const pct = Math.min(100, today / (D.goal * 60000) * 100); $('goalBar').style.width = pct + '%';
+  $('goalTxt').textContent = today >= D.goal * 60000 ? 'You reached today\'s goal! 🎉' : `${fmt(Math.max(0, D.goal * 60000 - today))} to go. You can do it!`;
+  const mx = Math.max(...vals, 1);
+  $('chart').innerHTML = vals.map((v, i) => `<div class="col"><div class="b" style="height:${Math.max(4, v / mx * 85)}px" title="${fmt(v)}"></div><span>${days[i].l}</span></div>`).join('');
+  const subs = {}; D.history.forEach(h => { const k = h.subjectId || 'none'; subs[k] = subs[k] || {ms: 0, id: h.subjectId, name: h.name}; subs[k].ms += h.ms; });
+  const rows = Object.values(subs).sort((a, b) => b.ms - a.ms), box = $('bySub'); box.innerHTML = '';
+  if (!rows.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = 'Time per subject appears after your first session.'; box.appendChild(p); }
+  rows.forEach(r => {
+    const d = document.createElement('div'); d.className = 'sb'; d.textContent = `${subName(r.id) || r.name || 'No subject'} · ${fmt(r.ms)}`;
+    const bar = document.createElement('div'); bar.className = 'bar'; const i = document.createElement('i'); i.style.width = (r.ms / rows[0].ms * 100) + '%'; bar.appendChild(i); d.appendChild(bar); box.appendChild(d);
+  });
+  const ul = $('hist'); ul.innerHTML = ''; $('histEmpty').style.display = D.history.length ? 'none' : 'block';
+  D.history.slice(-8).reverse().forEach(h => {
+    const li = document.createElement('li'), n = document.createElement('span'), t = document.createElement('small');
+    n.className = 'nm'; n.textContent = subName(h.subjectId) || h.name || 'No subject';
+    t.textContent = fmt(h.ms) + ' · ' + new Date(h.at).toLocaleString(undefined, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'});
+    li.append(n, t); ul.appendChild(li);
+  });
+}
+function initStudy() {
+  $('cf').value = D.cfg.focus; $('cb').value = D.cfg.brk;
+  $('tMain').onclick = () => T.status === 'running' ? pauseTimer() : startTimer();
+  $('tReset').onclick = resetTimer;
+  $('tSkip').onclick = resetTimer;
+  $('cSet').onclick = () => applyCfg(Number($('cf').value), Number($('cb').value));
+  document.querySelectorAll('.chipb').forEach(b => b.onclick = () => applyCfg(+b.dataset.f, +b.dataset.b));
+  $('tSub').onchange = e => pick(e.target.value || null);
+  $('tkAdd').onclick = addTask; $('tkIn').onkeydown = e => { if (e.key === 'Enter') addTask(); };
+  $('goal').onchange = e => { const g = Math.round(Number(e.target.value)); if (g >= 5 && g <= 1440) { D.goal = g; saveD(); } else toast('Goal: 5-1440 minutes.'); renderStats(); };
+  let armed = false;
+  $('wipe').onclick = () => {
+    if (!armed) { armed = true; $('wipe').textContent = 'Tap again to confirm'; return setTimeout(() => { armed = false; $('wipe').textContent = 'Reset tasks and history'; }, 3500); }
+    armed = false; D.tasks = []; D.history = []; saveD(); $('wipe').textContent = 'Reset tasks and history'; renderTasks(); renderStats(); toast('Tasks and history cleared.');
+  };
+  document.addEventListener('visibilitychange', tick);
+  setInterval(tick, 250);
+  tick(); if (T.status !== 'idle') petSync();
+}
+loadD(); build(); renderSubs(); renderPet(); motion(); initStudy();
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => tab(+b.dataset.t));
+$('motionBtn').onclick = () => { S.motion = S.motion === 'on' ? 'auto' : 'on'; save(); motion(); };
+$('subAdd').onclick = addSubject;
+$('subIn').onkeydown = e => { if (e.key === 'Enter') addSubject(); };
+for (let i = 0; i < 7; i++) { const l = document.createElement('div'); l.className = 'leaf'; l.style.left = Math.random() * 100 + '%'; l.style.animationDuration = 14 + Math.random() * 10 + 's'; l.style.animationDelay = -Math.random() * 20 + 's'; $('leaves').appendChild(l); }
+
+// ===== Stage 3: accounts, cloud sync, admin (all real checks happen in Supabase, see studypaws-setup.sql) =====
+const SB_URL = 'https://vjcboebllecqjhtstdmn.supabase.co', SB_KEY = 'sb_publishable_E-IEgDWWGhiv5MIiyzIEsA_v2uc9pDB'; // public by design
+const CAT = 'studypaws.cloudAt';
+let sb = null, user = null, pushT, syncMsg = 'Not synced yet';
+try { sb = supabase.createClient(SB_URL, SB_KEY, {auth: {persistSession: true, autoRefreshToken: true, detectSessionInUrl: true}}); } catch (e) { sb = null; }
+function el(t, c, txt) { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; }
+function setSync(m) { syncMsg = m; const s = $('syncLine'); if (s) s.textContent = m; }
+function cloudSoon() { if (!sb || !user) return; clearTimeout(pushT); pushT = setTimeout(cloudPush, 1500); }
+async function cloudPush() {
+  if (!sb || !user) return;
+  const {timer, ...study} = D, at = new Date().toISOString();
+  const {error} = await sb.from('user_data').upsert({user_id: user.id, data: {v3: S, study}, updated_at: at});
+  if (error) return setSync('Could not sync. Will retry on your next change.');
+  try { localStorage.setItem(CAT, at); } catch (e) { /* ignore */ }
+  setSync('Synced ✓');
+}
+async function cloudPull() {
+  const {data, error} = await sb.from('user_data').select('data,updated_at').eq('user_id', user.id).maybeSingle();
+  if (error) return setSync('Could not load your cloud data.');
+  if (!data) return cloudPush();
+  let at = ''; try { at = localStorage.getItem(CAT) || ''; } catch (e) { /* ignore */ }
+  if ((!at || Date.parse(data.updated_at) > Date.parse(at) + 1) && data.data && data.data.v3 && data.data.study) {
+    try { localStorage.setItem(KEY, JSON.stringify(data.data.v3)); localStorage.setItem(DKEY, JSON.stringify(data.data.study)); localStorage.setItem(CAT, data.updated_at); location.reload(); } catch (e) { setSync('Could not apply cloud data.'); }
+  } else setSync('Synced ✓');
+}
+async function doSignOut() {
+  clearTimeout(pushT); await cloudPush(); await sb.auth.signOut();
+  try { localStorage.removeItem(KEY); localStorage.removeItem(DKEY); localStorage.removeItem(CAT); } catch (e) { /* ignore */ } // keeps shared computers private
+  location.hash = ''; location.reload();
+}
+function updateAcct() { $('acctBtn').textContent = user ? '👤 Account' : '👤 Sign in'; }
+
+// ----- modal screens -----
+const modal = $('modal'), mcard = $('mcard');
+function closeModal() { modal.hidden = true; mcard.innerHTML = ''; }
+modal.onclick = e => { if (e.target === modal) closeModal(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+function pwForm(done) {
+  const f = el('form'); f.innerHTML = '<label>New password<input type="password" autocomplete="new-password" required></label><label>Confirm new password<input type="password" autocomplete="new-password" required></label><button class="btn">Save password</button><div class="msg" role="status"></div>';
+  const [a, b] = f.querySelectorAll('input'), m = f.querySelector('.msg');
+  f.onsubmit = async e => {
+    e.preventDefault(); m.className = 'msg';
+    const bad = t => { m.textContent = t; m.classList.add('err'); };
+    if (a.value.length < 8) return bad('Use at least 8 characters.');
+    if (a.value !== b.value) return bad('The passwords do not match.');
+    const {error} = await sb.auth.updateUser({password: a.value});
+    if (error) return bad('Could not change the password. Try signing in again first.');
+    await sb.auth.signOut({scope: 'others'}); // signs out other devices
+    a.value = b.value = ''; m.textContent = 'Password changed. Other devices were signed out.'; m.classList.add('ok'); if (done) done();
+  };
+  return f;
+}
+function authView(v) {
+  modal.hidden = false; mcard.innerHTML = '';
+  const close = el('button', 'lnk', 'Close'); close.onclick = closeModal;
+  if (!sb) { mcard.append(el('h2', '', 'Online features unavailable'), el('p', '', 'The online service could not be loaded. Check your internet connection and refresh.'), close); return; }
+  if (v === 'recover') { mcard.append(el('h2', '', 'Choose a new password'), pwForm(() => setTimeout(closeModal, 2000))); return; }
+  if (user) {
+    const em = el('p', '', ''); em.textContent = 'Signed in as ' + user.email;
+    const out = el('button', 'btn soft', 'Sign out'); out.onclick = doSignOut;
+    const sy = el('p', 'hint', syncMsg); sy.id = 'syncLine';
+    mcard.append(el('h2', '', 'Your account'), em, sy, el('h2', '', 'Change password'), pwForm(), out, el('br'), close); return;
+  }
+  const C = {login: ['Welcome back', 'Sign in', 1, 0], signup: ['Create your account', 'Create account', 1, 1], forgot: ['Forgot password?', 'Send reset link', 0, 0]}[v];
+  const f = el('form');
+  f.innerHTML = '<label>Email<input type="email" autocomplete="email" required></label>' + (C[2] ? `<label>Password<input type="password" autocomplete="${C[3] ? 'new' : 'current'}-password" required></label>` : '') + (C[3] ? '<label>Confirm password<input type="password" autocomplete="new-password" required></label>' : '') + `<button class="btn">${C[1]}</button><div class="msg" role="status"></div>`;
+  const ins = f.querySelectorAll('input'), m = f.querySelector('.msg'), go = f.querySelector('button');
+  f.onsubmit = async e => {
+    e.preventDefault(); m.className = 'msg'; const email = ins[0].value.trim();
+    const say = (t, c) => { m.textContent = t; m.classList.add(c); };
+    if (v !== 'forgot' && ins[1].value.length < 8) return say('Use at least 8 characters.', 'err');
+    if (v === 'signup' && ins[1].value !== ins[2].value) return say('The passwords do not match.', 'err');
+    go.disabled = true;
+    const back = location.origin + location.pathname;
+    if (v === 'login') {
+      const {error} = await sb.auth.signInWithPassword({email, password: ins[1].value});
+      if (error) say(/confirm/i.test(error.message) ? 'Please confirm your email first. Check your inbox.' : 'Email or password is not correct.', 'err'); else closeModal();
+    } else if (v === 'signup') {
+      const {error} = await sb.auth.signUp({email, password: ins[1].value, options: {emailRedirectTo: back}});
+      if (error && /password/i.test(error.message)) say('Please choose a stronger password.', 'err'); else say('Almost there! If this email can be registered, a confirmation link is on its way. Check your inbox and spam.', 'ok');
+    } else {
+      await sb.auth.resetPasswordForEmail(email, {redirectTo: back});
+      say('If an account exists for that email, a reset link is on its way. It expires and works once.', 'ok'); // same message either way
+    }
+    go.disabled = false;
+  };
+  const links = el('div'); const lk = (t, to) => { const b = el('button', 'lnk', t); b.type = 'button'; b.onclick = () => authView(to); links.append(b); };
+  if (v === 'login') { lk('Create account', 'signup'); lk('Forgot password?', 'forgot'); } else lk('Back to sign in', 'login');
+  mcard.append(el('h2', '', C[0]), f, links, close);
+  setTimeout(() => ins[0].focus(), 0);
+}
+$('acctBtn').onclick = () => authView('login');
+
+// ----- admin area: only opens at #/admin; the data itself is protected by the database -----
+function ask(msg, yes) {
+  const d = el('div', 'dlg'), b = el('div'), row = el('div', 'row'), y = el('button', 'btn red', 'Yes, continue'), n = el('button', 'btn soft', 'Cancel');
+  row.append(y, n); b.append(el('p', '', msg), row); d.append(b); $('admin').append(d);
+  n.onclick = () => d.remove(); y.onclick = async () => { d.remove(); await yes(); };
+}
+async function ovTab(m) {
+  m.append(el('h1', '', 'Overview')); const g = el('div', 'ad-cards'); m.append(g);
+  const t0 = performance.now(), {data, error} = await sb.rpc('admin_stats'), ms = Math.round(performance.now() - t0);
+  const card = (l, v) => { const c = el('div', 'ac'); c.append(el('b', '', String(v)), el('small', '', l)); g.append(c); };
+  if (error || !data) { card('Database health', 'Problem'); m.append(el('p', '', 'Could not load statistics. Was the SQL setup run?')); return; }
+  card('Registered users', data.users); card('New in 7 days', data.new_week); card('Suspended', data.suspended); card('Study sessions saved', data.sessions); card('Database health', 'OK · ' + ms + ' ms');
+}
+async function usTab(m) {
+  m.append(el('h1', '', 'Users'));
+  const bar = el('div', 'row'), q = el('input'), f = el('select'); q.placeholder = 'Search email or name'; q.setAttribute('aria-label', 'Search users'); f.style.width = '140px'; bar.style.marginBottom = '12px';
+  [['all', 'All'], ['active', 'Active'], ['suspended', 'Suspended']].forEach(([v, t]) => { const o = el('option', '', t); o.value = v; f.append(o); }); bar.append(q, f); m.append(bar);
+  const tw = el('div', 'tw'); m.append(tw);
+  const {data, error} = await sb.rpc('admin_users'); if (error) { tw.append(el('p', '', 'Could not load users.')); return; }
+  const draw = () => {
+    tw.innerHTML = ''; const s = q.value.trim().toLowerCase();
+    const rows = data.filter(u => (f.value === 'all' || u.status === f.value) && ((u.email || '').toLowerCase().includes(s) || (u.display_name || '').toLowerCase().includes(s)));
+    if (!rows.length) { tw.append(el('p', '', 'No users match.')); return; }
+    const t = el('table'), hr = el('tr'); ['Email', 'Name', 'Role', 'Status', 'Joined', 'Last sign-in', ''].forEach(x => hr.append(el('th', '', x))); t.append(hr);
+    rows.forEach(u => {
+      const r = el('tr'); [u.email, u.display_name || '-', u.role, u.status, new Date(u.created_at).toLocaleDateString(), u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString() : 'never'].forEach(x => r.append(el('td', '', x)));
+      const td = el('td');
+      if (u.role !== 'admin') {
+        const act = u.status === 'active' ? 'suspended' : 'active', b = el('button', 'btn sm ' + (act === 'suspended' ? 'red' : 'soft'), act === 'suspended' ? 'Suspend' : 'Reactivate');
+        b.onclick = () => ask(`${b.textContent} ${u.email}?`, async () => { const {error: er} = await sb.rpc('admin_set_status', {target: u.id, new_status: act}); if (er) return toast('Could not change status.'); u.status = act; draw(); });
+        td.append(b);
+      }
+      r.append(td); t.append(r);
+    });
+    tw.append(t);
+  };
+  q.oninput = draw; f.onchange = draw; draw();
+}
+async function stTab(m) {
+  m.append(el('h1', '', 'Settings'));
+  const c1 = el('div', 'ac'), inp = el('input'); inp.maxLength = 140; inp.setAttribute('aria-label', 'Announcement');
+  c1.append(el('h2', '', 'Announcement banner'), el('p', 'hint', 'Shown at the top of StudyPaws for everyone. Leave empty to hide.'));
+  const {data} = await sb.from('app_settings').select('value').eq('key', 'announcement').maybeSingle(); inp.value = data ? data.value : '';
+  const sv = el('button', 'btn', 'Save'); sv.style.marginTop = '10px';
+  sv.onclick = async () => { const {error} = await sb.from('app_settings').upsert({key: 'announcement', value: inp.value.trim().slice(0, 140), updated_at: new Date().toISOString()}); toast(error ? 'Could not save.' : 'Saved.'); };
+  c1.append(inp, sv);
+  const c2 = el('div', 'ac'); c2.style.marginTop = '14px'; c2.append(el('h2', '', 'Change admin password'), pwForm()); m.append(c1, c2);
+}
+function adminCard(a, title, text, buttons) {
+  const c = el('div', 'mcard'); c.style.margin = 'auto'; c.append(el('h2', '', title), el('p', '', text));
+  buttons.forEach(([t, f, cls]) => { const b = el('button', cls || 'btn', t); b.onclick = f; c.append(b, document.createTextNode(' ')); }); a.append(c);
+}
+async function adminRoute() {
+  const a = $('admin');
+  if (location.hash !== '#/admin') { a.hidden = true; document.body.style.overflow = ''; return; }
+  a.hidden = false; a.innerHTML = ''; document.body.style.overflow = 'hidden';
+  const leave = ['Back to site', () => { location.hash = ''; }, 'btn soft'];
+  if (!sb) return adminCard(a, 'Unavailable', 'The online service could not be loaded.', [leave]);
+  const {data: {session}} = await sb.auth.getSession();
+  if (!session) return adminCard(a, 'Admin sign in', 'This area is for the site owner only.', [['Sign in', () => authView('login')], leave]);
+  const {data: p} = await sb.from('profiles').select('role,status').eq('id', session.user.id).maybeSingle();
+  if (!p || p.role !== 'admin' || p.status !== 'active') return adminCard(a, 'No access', 'This account does not have admin access.', [['Sign out', doSignOut], leave]);
+  const side = el('aside', 'ad-side'), main = el('main', 'ad-main'), btns = {}, tabs = {Overview: ovTab, Users: usTab, Settings: stTab};
+  a.append(side, main); side.append(el('b', '', '🐾 StudyPaws Admin'));
+  const show = n => { main.innerHTML = ''; Object.entries(btns).forEach(([k, b]) => b.classList.toggle('on', k === n)); tabs[n](main); };
+  Object.keys(tabs).forEach(n => { const b = el('button', '', n); b.onclick = () => show(n); btns[n] = b; side.append(b); });
+  const back = el('button', '', '← Back to site'), out = el('button', '', 'Sign out'); back.onclick = () => { location.hash = ''; }; out.onclick = doSignOut; side.append(back, out);
+  show('Overview');
+}
+window.addEventListener('hashchange', adminRoute);
+if (sb) {
+  sb.auth.onAuthStateChange((ev, session) => {
+    user = session ? session.user : null; updateAcct();
+    setTimeout(() => { // never call the database directly inside this callback
+      if (ev === 'PASSWORD_RECOVERY') authView('recover');
+      else if (user && (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION')) cloudPull();
+      if (location.hash === '#/admin' && ev !== 'TOKEN_REFRESHED') adminRoute();
+    }, 0);
+  });
+  sb.from('app_settings').select('value').eq('key', 'announcement').maybeSingle().then(({data}) => { if (data && data.value) { const b = $('banner'); b.textContent = data.value; b.hidden = false; } });
+}
+</script>
+</body>
+</html>
