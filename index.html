@@ -704,59 +704,17 @@ const modal = $('modal'), mcard = $('mcard');
 function closeModal() { modal.hidden = true; mcard.innerHTML = ''; }
 modal.onclick = e => { if (e.target === modal) closeModal(); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
-function pwForm(done) {
-  const f = el('form'); f.innerHTML = '<label>New password<input type="password" autocomplete="new-password" required></label><label>Confirm new password<input type="password" autocomplete="new-password" required></label><button class="btn">Save password</button><div class="msg" role="status"></div>';
-  const [a, b] = f.querySelectorAll('input'), m = f.querySelector('.msg');
-  f.onsubmit = async e => {
-    e.preventDefault(); m.className = 'msg';
-    const bad = t => { m.textContent = t; m.classList.add('err'); };
-    if (a.value.length < 8) return bad('Use at least 8 characters.');
-    if (a.value !== b.value) return bad('The passwords do not match.');
-    const {error} = await sb.auth.updateUser({password: a.value});
-    if (error) return bad('Could not change the password. Try signing in again first.');
-    await sb.auth.signOut({scope: 'others'}); // signs out other devices
-    a.value = b.value = ''; m.textContent = 'Password changed. Other devices were signed out.'; m.classList.add('ok'); if (done) done();
-  };
-  return f;
-}
 function authView(v) {
   modal.hidden = false; mcard.innerHTML = '';
   const close = el('button', 'lnk', 'Close'); close.onclick = closeModal;
   if (!sb) { mcard.append(el('h2', '', 'Online features unavailable'), el('p', '', 'The online service could not be loaded. Check your internet connection and refresh.'), close); return; }
-  if (v === 'recover') { mcard.append(el('h2', '', 'Choose a new password'), pwForm(() => setTimeout(closeModal, 2000))); return; }
   if (user) {
     const em = el('p', '', ''); em.textContent = 'Signed in as ' + user.email;
     const out = el('button', 'btn soft', 'Sign out'); out.onclick = doSignOut;
     const sy = el('p', 'hint', syncMsg); sy.id = 'syncLine';
-    mcard.append(el('h2', '', 'Your account'), em, sy, el('h2', '', 'Change password'), pwForm(), out, el('br'), close); return;
+    mcard.append(el('h2', '', 'Your account'), em, sy, out, el('br'), close); return;
   }
-  const C = {login: ['Welcome back', 'Sign in', 1, 0], signup: ['Create your account', 'Create account', 1, 1], forgot: ['Forgot password?', 'Send reset link', 0, 0]}[v];
-  const f = el('form');
-  f.innerHTML = '<label>Email<input type="email" autocomplete="email" required></label>' + (C[2] ? `<label>Password<input type="password" autocomplete="${C[3] ? 'new' : 'current'}-password" required></label>` : '') + (C[3] ? '<label>Confirm password<input type="password" autocomplete="new-password" required></label>' : '') + `<button class="btn">${C[1]}</button><div class="msg" role="status"></div>`;
-  const ins = f.querySelectorAll('input'), m = f.querySelector('.msg'), go = f.querySelector('button');
-  f.onsubmit = async e => {
-    e.preventDefault(); m.className = 'msg'; const email = ins[0].value.trim();
-    const say = (t, c) => { m.textContent = t; m.classList.add(c); };
-    if (v !== 'forgot' && ins[1].value.length < 8) return say('Use at least 8 characters.', 'err');
-    if (v === 'signup' && ins[1].value !== ins[2].value) return say('The passwords do not match.', 'err');
-    go.disabled = true;
-    const back = location.origin + location.pathname;
-    if (v === 'login') {
-      const {error} = await sb.auth.signInWithPassword({email, password: ins[1].value});
-      if (error) say(/confirm/i.test(error.message) ? 'Please confirm your email first. Check your inbox.' : 'Email or password is not correct.', 'err'); else closeModal();
-    } else if (v === 'signup') {
-      const {error} = await sb.auth.signUp({email, password: ins[1].value, options: {emailRedirectTo: back}});
-      if (error && /password/i.test(error.message)) say('Please choose a stronger password.', 'err'); else say('Almost there! If this email can be registered, a confirmation link is on its way. Check your inbox and spam.', 'ok');
-    } else {
-      await sb.auth.resetPasswordForEmail(email, {redirectTo: back});
-      say('If an account exists for that email, a reset link is on its way. It expires and works once.', 'ok'); // same message either way
-    }
-    go.disabled = false;
-  };
-  const links = el('div'); const lk = (t, to) => { const b = el('button', 'lnk', t); b.type = 'button'; b.onclick = () => authView(to); links.append(b); };
-  if (v === 'login') { lk('Create account', 'signup'); lk('Forgot password?', 'forgot'); } else lk('Back to sign in', 'login');
-  mcard.append(el('h2', '', C[0]), f, links, close);
-  setTimeout(() => ins[0].focus(), 0);
+  mcard.append(el('h2', '', 'Sign in to StudyPaws'), googleBtn(false), close);
 }
 $('acctBtn').onclick = () => authView('login');
 
@@ -806,28 +764,27 @@ async function stTab(m) {
   const sv = el('button', 'btn', 'Save'); sv.style.marginTop = '10px';
   sv.onclick = async () => { const {error} = await sb.from('app_settings').upsert({key: 'announcement', value: inp.value.trim().slice(0, 140), updated_at: new Date().toISOString()}); toast(error ? 'Could not save.' : 'Saved.'); };
   c1.append(inp, sv);
-  const c2 = el('div', 'ac'); c2.style.marginTop = '14px'; c2.append(el('h2', '', 'Change admin password'), pwForm()); m.append(c1, c2);
+  m.append(c1);
 }
 function adminCard(a, title, text, buttons) {
   const c = el('div', 'mcard'); c.style.margin = 'auto'; c.append(el('h2', '', title), el('p', '', text));
   buttons.forEach(([t, f, cls]) => { const b = el('button', cls || 'btn', t); b.onclick = f; c.append(b, document.createTextNode(' ')); }); a.append(c);
 }
 let adminOpen = false;
-const ADMIN_EMAIL = ''; // optional: put your admin email between the quotes so only the password is asked
-function adminLogin(a) {
-  const c = el('div', 'mcard'), f = el('form'); c.style.margin = 'auto';
-  f.innerHTML = (ADMIN_EMAIL ? '' : '<label>Email<input type="email" autocomplete="username" required></label>') + '<label>Password<input type="password" autocomplete="current-password" required></label><button class="btn">Unlock</button><div class="msg" role="status"></div>';
-  const ins = f.querySelectorAll('input'), m = f.querySelector('.msg'), go = f.querySelector('button'); let fails = 0;
-  f.onsubmit = async e => {
-    e.preventDefault(); m.className = 'msg'; go.disabled = true;
-    const {error} = await sb.auth.signInWithPassword({email: ADMIN_EMAIL || ins[0].value.trim(), password: ins[ins.length - 1].value});
-    if (error) { fails++; m.textContent = 'Incorrect password.'; m.classList.add('err'); if (fails >= 5) { m.textContent = 'Too many tries. Wait 30 seconds.'; setTimeout(() => { fails = 0; go.disabled = false; }, 30000); return; } }
-    go.disabled = false; ins[ins.length - 1].value = '';
+try { if (sessionStorage.getItem('sp.admin')) { sessionStorage.removeItem('sp.admin'); adminOpen = true; } } catch (e) { /* ignore */ }
+function googleBtn(admin) {
+  const b = el('button', 'btn soft', 'Continue with Google'); b.type = 'button'; b.style.cssText = 'width:100%;margin-bottom:12px';
+  b.onclick = async () => {
+    try { if (admin) sessionStorage.setItem('sp.admin', '1'); } catch (e) { /* ignore */ }
+    const {error} = await sb.auth.signInWithOAuth({provider: 'google', options: {redirectTo: location.origin + location.pathname}});
+    if (error) toast('Google sign-in is not set up yet.');
   };
-  const fg = el('button', 'lnk', 'Forgot password?'); fg.type = 'button';
-  fg.onclick = async () => { const em = ADMIN_EMAIL || ins[0].value.trim(); if (!em) { m.textContent = 'Type the email first.'; m.className = 'msg err'; return; } await sb.auth.resetPasswordForEmail(em, {redirectTo: location.origin + location.pathname}); m.textContent = 'If an account exists, a reset link is on its way.'; m.className = 'msg ok'; };
-  const back = el('button', 'lnk', 'Close'); back.type = 'button'; back.onclick = () => { adminOpen = false; adminRoute(); };
-  c.append(el('h2', '', 'Enter password'), f, fg, back); a.append(c); setTimeout(() => ins[0].focus(), 0);
+  return b;
+}
+function adminLogin(a) {
+  const c = el('div', 'mcard'); c.style.margin = 'auto';
+  const back = el('button', 'lnk', 'Close'); back.onclick = () => { adminOpen = false; adminRoute(); };
+  c.append(el('h2', '', 'Sign in'), el('p', '', 'Use the Google account of the site owner.'), googleBtn(true), back); a.append(c);
 }
 async function adminRoute() {
   const a = $('admin');
@@ -856,8 +813,7 @@ if (sb) {
   sb.auth.onAuthStateChange((ev, session) => {
     user = session ? session.user : null; updateAcct();
     setTimeout(() => { // never call the database directly inside this callback
-      if (ev === 'PASSWORD_RECOVERY') authView('recover');
-      else if (user && (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION')) cloudPull();
+      if (user && (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION')) cloudPull();
       if (adminOpen && ev !== 'TOKEN_REFRESHED') adminRoute();
     }, 0);
   });
