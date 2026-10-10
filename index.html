@@ -139,7 +139,7 @@ svg *{transform-box:fill-box;transform-origin:center}
 select{width:100%;padding:11px 15px;border:2px solid var(--lav);border-radius:16px;background:var(--cream);font:inherit;color:var(--ink)}
 select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,139,209,.2)}
 [hidden]{display:none!important}
-.tabs{grid-template-columns:repeat(5,1fr)}.tabs i{width:calc((100% - 10px)/5)}
+.tabs{grid-template-columns:repeat(6,1fr)}.tabs i{width:calc((100% - 10px)/6)}
 .tabs button{display:flex;flex-direction:column;align-items:center;gap:0;font-size:.68rem;padding:6px 1px}.tabs button span{font-size:1.2rem}
 .ringbox{position:relative;width:210px;height:210px;margin:0 auto 12px}.ringbox svg{width:100%;height:100%}
 .rbg{fill:none;stroke:var(--lav);stroke-width:16}
@@ -190,6 +190,17 @@ select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,1
 .admin th,.admin td{text-align:left;padding:10px 8px;border-bottom:1px solid #52446f;white-space:nowrap}
 .dlg{position:absolute;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:2}.dlg>div{background:#3a3052;padding:22px;border-radius:22px;max-width:340px}
 @media(max-width:800px){.admin{flex-direction:column}.ad-side{width:auto;flex-direction:row;flex-wrap:wrap}.ad-side b{width:100%;margin:0}}
+
+/* study room */
+.stage{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:6px 10px;width:100%;margin:auto 0 12px}
+.mate{width:var(--w,200px);text-align:center;animation:rise .5s var(--spring)}
+.mpet svg{width:100%;height:auto;display:block;overflow:visible;filter:drop-shadow(0 8px 8px rgba(80,60,100,.14))}
+.mname{display:block;width:fit-content;margin-left:auto;margin-right:auto;background:var(--pink);padding:3px 14px;border-radius:30px;font:600 .95rem Fredoka,sans-serif;margin-top:4px;box-shadow:0 3px 0 #efb6ca;max-width:100%;overflow-wrap:anywhere}
+.mate.me .mname{background:var(--mint);box-shadow:0 3px 0 #b5d6b9}
+.mstat{font-size:.78rem;font-weight:700;margin:6px auto 0;background:var(--glass);border-radius:14px;padding:4px 10px;display:block;width:fit-content;max-width:100%;overflow-wrap:anywhere}
+.rcode{font:600 2.2rem Fredoka,sans-serif;letter-spacing:.3em;text-align:center;background:var(--cream);border-radius:20px;padding:10px 0 10px .3em;margin:6px 0 12px;box-shadow:inset 0 0 0 2px var(--lav)}
+.rcode+.hint{margin-bottom:12px}.rbtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.rbtns .btn{flex:1 1 auto}
 </style>
 </head>
 <body>
@@ -213,6 +224,7 @@ select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,1
     <div class="bubble" id="status" aria-live="polite"></div>
     <div id="petWrap"></div>
     <div class="tag" id="tag">Mochi</div>
+    <div class="stage" id="roomStage" aria-label="Study room" hidden></div>
   </section>
 
   <aside class="panel">
@@ -222,6 +234,7 @@ select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,1
       <button role="tab" aria-selected="false" data-t="2"><span>📚</span>Subjects</button>
       <button role="tab" aria-selected="false" data-t="3"><span>⏱️</span>Focus</button>
       <button role="tab" aria-selected="false" data-t="4"><span>📊</span>Stats</button>
+      <button role="tab" aria-selected="false" data-t="5"><span>👥</span>Room</button>
     </div>
 
     <div class="sheet on" role="tabpanel">
@@ -266,6 +279,8 @@ select:focus{outline:0;border-color:var(--lav-d);box-shadow:0 0 0 5px rgba(154,1
       <h2>Recent sessions</h2><ul class="list" id="hist"></ul><div class="empty" id="histEmpty">🍃<p>Finish a focus session to see it here.</p></div>
       <button class="btn red sm" id="wipe">Reset tasks and history</button>
     </div>
+
+    <div class="sheet" role="tabpanel"><div id="roomBox"></div></div>
   </aside>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -309,8 +324,8 @@ const ACC_SVG = {
   flowers: `<g>${flowerDots}</g>`,
   star: '<g transform="translate(60 56) rotate(-15)"><path d="M0 -13 L4 -4 L13 -3 L6 3 L8 13 L0 8 L-8 13 L-6 3 L-13 -3 L-4 -4Z" fill="#ffd45e" stroke="#f0b429" stroke-width="2" stroke-linejoin="round"/></g>'
 };
-function petSVG(k) {
-  const c = PETS[k], g = 'g' + k, pd = k === 'panda', ink = '#3a2d3e';
+function petSVG(k, sfx = '') {
+  const c = PETS[k], g = 'g' + k + sfx, pd = k === 'panda', ink = '#3a2d3e';
   const patch = pd ? '<ellipse cx="74" cy="100" rx="17" ry="20" fill="#3b3340" transform="rotate(25 74 100)"/><ellipse cx="126" cy="100" rx="17" ry="20" fill="#3b3340" transform="rotate(-25 126 100)"/>' : '';
   const muzzle = k === 'fox' ? '<path d="M38 112 Q70 138 100 124 Q130 138 162 112 Q150 152 100 154 Q50 152 38 112Z" fill="#fff3e4"/>' : k === 'frog' ? '' : `<ellipse cx="100" cy="122" rx="24" ry="17" fill="${c.bel}"/>`;
   const eye = x => `<g class="eye"><ellipse cx="${x}" cy="100" rx="11" ry="14" fill="${ink}"/><circle cx="${x+4}" cy="95" r="4.5" fill="#fff"/><circle cx="${x-4}" cy="105" r="2.2" fill="#fff"/></g>`;
@@ -355,13 +370,14 @@ try {
     S.subjectId = S.subjects.some(s => s.id === d.subjectId) ? d.subjectId : null;
   }
 } catch (e) { /* no storage or broken data: use defaults */ }
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } cloudSoon(); };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } cloudSoon(); roomTrack(); };
 let tt;
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2400); }
 const subj = () => S.subjects.find(s => s.id === S.subjectId);
 
 // ----- pet display -----
 let cur = 'idle', timer;
+let roomCh = null, roomReady = false, roomCode = null; // study room (Stage 4)
 const svg = () => document.querySelector('#petWrap > svg');
 function renderPet() {
   $('petWrap').innerHTML = petSVG(S.pet) + '<div class="fx" id="fx" aria-hidden="true"></div>';
@@ -370,7 +386,7 @@ function renderPet() {
 }
 function applyWear() { svg().querySelectorAll('.acc').forEach(g => g.classList.toggle('on', S.wear.includes(g.dataset.acc))); }
 function setAction(a, quiet) {
-  cur = a; const s = svg(); if (s) s.dataset.s = a;
+  cur = a; const s = svg(); if (s) s.dataset.s = a; roomTrack();
   document.querySelectorAll('#actions .tile').forEach(b => b.setAttribute('aria-pressed', b.dataset.a === a));
   const n = S.name || PETS[S.pet].l, sb = subj() ? subj().name : 'something fun';
   $('tag').textContent = n;
@@ -819,6 +835,113 @@ if (sb) {
   });
   sb.from('app_settings').select('value').eq('key', 'announcement').maybeSingle().then(({data}) => { if (data && data.value) { const b = $('banner'); b.textContent = data.value; b.hidden = false; } });
 }
+
+// ===== Stage 4: study rooms. Live "presence" over Supabase Realtime, so no database tables are needed =====
+const RKEY = 'studypaws.room', RCH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+let roomId = uid(), roomMembers = [], roomT, mateEls = {};
+const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(5)), n => RCH[n % RCH.length]).join('');
+const myName = () => (S.name || PETS[S.pet].l).slice(0, 16);
+function roomInfo() {
+  const run = T && T.status === 'running';
+  return {name: myName(), pet: S.pet, wear: S.wear, act: cur, kind: run ? T.kind : '', end: run ? T.endAt : 0, sub: run && T.kind === 'focus' && subj() ? subj().name : ''};
+}
+function roomTrack() {
+  if (!roomCh || !roomReady) return;
+  clearTimeout(roomT); roomT = setTimeout(() => { try { if (roomCh) roomCh.track(roomInfo()); } catch (e) { /* ignore */ } }, 250);
+}
+function joinRoom(code) {
+  code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  if (!sb) return toast('Online features are unavailable right now.');
+  if (code.length !== 5) return toast('A room code has 5 letters or numbers.');
+  leaveRoom(true);
+  roomCode = code; roomReady = false; roomMembers = [];
+  const ch = sb.channel('studypaws-room-' + code, {config: {presence: {key: roomId}, broadcast: {self: true}}});
+  roomCh = ch;
+  ch.on('presence', {event: 'sync'}, () => {
+    if (ch !== roomCh) return;
+    roomMembers = Object.entries(ch.presenceState()).map(([k, v]) => Object.assign({}, v[v.length - 1], {k}));
+    drawRoom();
+  }).on('broadcast', {event: 'cheer'}, ({payload}) => onCheer(payload))
+    .subscribe(async st => {
+      if (ch !== roomCh) return;
+      if (st === 'SUBSCRIBED') {
+        roomReady = true; try { await ch.track(roomInfo()); } catch (e) { /* ignore */ }
+        try { localStorage.setItem(RKEY, code); } catch (e) { /* ignore */ }
+        roomUI(); toast('You joined room ' + code + ' 🐾');
+      } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { toast('Could not connect to the room. Check your internet and try again.'); leaveRoom(); }
+    });
+  roomUI();
+}
+function leaveRoom(quiet) {
+  const ch = roomCh; roomCh = null; roomReady = false; roomCode = null; roomMembers = [];
+  if (ch) { try { sb.removeChannel(ch); } catch (e) { /* ignore */ } }
+  if (!quiet) { try { localStorage.removeItem(RKEY); } catch (e) { /* ignore */ } drawRoom(); }
+}
+function sendCheer() { if (roomCh && roomReady) roomCh.send({type: 'broadcast', event: 'cheer', payload: {k: roomId, n: myName()}}); }
+function onCheer(p) {
+  if (!p || typeof p.k !== 'string') return;
+  const m = mateEls[p.k];
+  if (m) { m.svg.dataset.s = 'celebrate'; setTimeout(() => { const n = mateEls[p.k]; if (n) n.svg.dataset.s = n.act; }, 3500); }
+  if (p.k !== roomId) toast(String(p.n || 'A friend').slice(0, 16) + ' is cheering for everyone! 🎉');
+}
+function drawRoom() {
+  const st = $('roomStage'), show = !!roomCode && roomMembers.length > 0;
+  st.hidden = !show; $('petWrap').hidden = show; $('tag').hidden = show;
+  st.innerHTML = ''; mateEls = {};
+  if (show) {
+    const list = [...roomMembers].sort((a, b) => a.k === roomId ? -1 : b.k === roomId ? 1 : String(a.name).localeCompare(String(b.name))).slice(0, 12), n = list.length;
+    const w = n <= 1 ? 'min(340px,70vw)' : n === 2 ? 'min(220px,40vw)' : n <= 4 ? 'min(170px,28vw)' : 'min(120px,20vw)';
+    list.forEach((m, i) => {
+      const pet = PETS[m.pet] ? m.pet : 'cat', act = ACTIONS[m.act] ? m.act : 'idle', wear = Array.isArray(m.wear) ? m.wear.filter(a => ACCS[a]) : [];
+      const d = el('div', 'mate' + (m.k === roomId ? ' me' : '')), pw = el('div', 'mpet');
+      d.style.setProperty('--w', w);
+      pw.innerHTML = petSVG(pet, 'r' + i); // built only from fixed strings; pet key is checked above
+      const sv = pw.firstElementChild; sv.dataset.s = act;
+      sv.querySelectorAll('.acc').forEach(g => { if (wear.includes(g.dataset.acc)) g.classList.add('on'); });
+      const nm = el('div', 'mname', String(m.name || PETS[pet].l).slice(0, 16) + (m.k === roomId ? ' (you)' : '')), stt = el('div', 'mstat');
+      d.append(pw, nm, stt); st.append(d);
+      mateEls[m.k] = {svg: sv, stat: stt, m, act};
+    });
+  }
+  roomUI(); roomText();
+}
+function roomText() {
+  Object.values(mateEls).forEach(({stat, m}) => {
+    const a = ACTIONS[m.act] ? m.act : 'idle', left = Number(m.end) - Date.now();
+    stat.textContent = m.kind === 'focus' && left > 0 ? '✏️ Studying' + (m.sub ? ' ' + String(m.sub).slice(0, 30) : '') + ' · ' + mmss(left)
+      : m.kind === 'break' && left > 0 ? '☕ Break · ' + mmss(left) : ACTIONS[a][0] + ' ' + ACTIONS[a][1];
+  });
+}
+setInterval(roomText, 1000);
+function copyText(t) {
+  if (!navigator.clipboard) return toast('Could not copy. Please copy it by hand.');
+  navigator.clipboard.writeText(t).then(() => toast('Copied!'), () => toast('Could not copy. Please copy it by hand.'));
+}
+function roomUI() {
+  const b = $('roomBox'); if (!b) return; b.innerHTML = '';
+  if (!sb) { b.append(el('h2', '', 'Study together'), el('p', 'hint', 'Online features could not load. Check your internet and refresh.')); return; }
+  if (!roomCode) {
+    const mk = el('button', 'btn', 'Create a room'), row = el('div', 'row'), inp = el('input'), go = el('button', 'btn soft', 'Join');
+    mk.style.width = '100%'; mk.onclick = () => joinRoom(newCode());
+    inp.placeholder = 'Enter code'; inp.maxLength = 5; inp.style.textTransform = 'uppercase'; inp.setAttribute('aria-label', 'Room code');
+    go.onclick = () => joinRoom(inp.value); inp.onkeydown = e => { if (e.key === 'Enter') joinRoom(inp.value); };
+    row.append(inp, go);
+    b.append(el('h2', '', 'Study together'), el('p', 'hint', 'Create a room and send the code to your friends. Everyone\'s pets show up together on the left, and you can see who is studying.'), mk, el('h2', '', 'Have a code?'), row);
+    return;
+  }
+  const code = el('div', 'rcode', roomCode), btns = el('div', 'rbtns'), cp = el('button', 'btn soft sm', 'Copy code'), ln = el('button', 'btn soft sm', 'Copy invite link'), ch = el('button', 'btn sm', 'Cheer 🎉'), lv = el('button', 'btn red sm', 'Leave room');
+  cp.onclick = () => copyText(roomCode); ln.onclick = () => copyText(location.origin + location.pathname + '#room=' + roomCode);
+  ch.onclick = sendCheer; lv.onclick = () => { leaveRoom(); toast('You left the room.'); };
+  btns.append(cp, ln, ch, lv);
+  b.append(el('h2', '', 'You are in a room'), code, el('p', 'hint', roomReady ? (roomMembers.length === 1 ? 'Just you so far. Send the code to a friend!' : roomMembers.length + ' people are here.') : 'Connecting...'), btns,
+    el('p', 'hint', 'People in the room can see your pet, its name, and the subject you are studying. Anyone with the code can join, so only share it with friends.'));
+}
+(function () {
+  const m = /room=([A-Za-z0-9]{5})/.exec(location.hash); let c = m ? m[1] : '';
+  if (!c) { try { c = localStorage.getItem(RKEY) || ''; } catch (e) { /* ignore */ } }
+  roomUI();
+  if (c && sb) { joinRoom(c); if (m) { tab(5); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ } } }
+})();
 </script>
 </body>
 </html>
