@@ -812,31 +812,53 @@ function adminCard(a, title, text, buttons) {
   const c = el('div', 'mcard'); c.style.margin = 'auto'; c.append(el('h2', '', title), el('p', '', text));
   buttons.forEach(([t, f, cls]) => { const b = el('button', cls || 'btn', t); b.onclick = f; c.append(b, document.createTextNode(' ')); }); a.append(c);
 }
+let adminOpen = false;
+const ADMIN_EMAIL = ''; // optional: put your admin email between the quotes so only the password is asked
+function adminLogin(a) {
+  const c = el('div', 'mcard'), f = el('form'); c.style.margin = 'auto';
+  f.innerHTML = (ADMIN_EMAIL ? '' : '<label>Email<input type="email" autocomplete="username" required></label>') + '<label>Password<input type="password" autocomplete="current-password" required></label><button class="btn">Unlock</button><div class="msg" role="status"></div>';
+  const ins = f.querySelectorAll('input'), m = f.querySelector('.msg'), go = f.querySelector('button'); let fails = 0;
+  f.onsubmit = async e => {
+    e.preventDefault(); m.className = 'msg'; go.disabled = true;
+    const {error} = await sb.auth.signInWithPassword({email: ADMIN_EMAIL || ins[0].value.trim(), password: ins[ins.length - 1].value});
+    if (error) { fails++; m.textContent = 'Incorrect password.'; m.classList.add('err'); if (fails >= 5) { m.textContent = 'Too many tries. Wait 30 seconds.'; setTimeout(() => { fails = 0; go.disabled = false; }, 30000); return; } }
+    go.disabled = false; ins[ins.length - 1].value = '';
+  };
+  const fg = el('button', 'lnk', 'Forgot password?'); fg.type = 'button';
+  fg.onclick = async () => { const em = ADMIN_EMAIL || ins[0].value.trim(); if (!em) { m.textContent = 'Type the email first.'; m.className = 'msg err'; return; } await sb.auth.resetPasswordForEmail(em, {redirectTo: location.origin + location.pathname}); m.textContent = 'If an account exists, a reset link is on its way.'; m.className = 'msg ok'; };
+  const back = el('button', 'lnk', 'Close'); back.type = 'button'; back.onclick = () => { adminOpen = false; adminRoute(); };
+  c.append(el('h2', '', 'Enter password'), f, fg, back); a.append(c); setTimeout(() => ins[0].focus(), 0);
+}
 async function adminRoute() {
   const a = $('admin');
-  if (location.hash !== '#/admin') { a.hidden = true; document.body.style.overflow = ''; return; }
+  if (!adminOpen) { a.hidden = true; document.body.style.overflow = ''; return; }
   a.hidden = false; a.innerHTML = ''; document.body.style.overflow = 'hidden';
-  const leave = ['Back to site', () => { location.hash = ''; }, 'btn soft'];
+  const leave = ['Back to site', () => { adminOpen = false; adminRoute(); }, 'btn soft'];
   if (!sb) return adminCard(a, 'Unavailable', 'The online service could not be loaded.', [leave]);
   const {data: {session}} = await sb.auth.getSession();
-  if (!session) return adminCard(a, 'Admin sign in', 'This area is for the site owner only.', [['Sign in', () => authView('login')], leave]);
+  if (!session) return adminLogin(a);
   const {data: p} = await sb.from('profiles').select('role,status').eq('id', session.user.id).maybeSingle();
   if (!p || p.role !== 'admin' || p.status !== 'active') return adminCard(a, 'No access', 'This account does not have admin access.', [['Sign out', doSignOut], leave]);
   const side = el('aside', 'ad-side'), main = el('main', 'ad-main'), btns = {}, tabs = {Overview: ovTab, Users: usTab, Settings: stTab};
   a.append(side, main); side.append(el('b', '', '🐾 StudyPaws Admin'));
   const show = n => { main.innerHTML = ''; Object.entries(btns).forEach(([k, b]) => b.classList.toggle('on', k === n)); tabs[n](main); };
   Object.keys(tabs).forEach(n => { const b = el('button', '', n); b.onclick = () => show(n); btns[n] = b; side.append(b); });
-  const back = el('button', '', '← Back to site'), out = el('button', '', 'Sign out'); back.onclick = () => { location.hash = ''; }; out.onclick = doSignOut; side.append(back, out);
+  const back = el('button', '', '← Back to site'), out = el('button', '', 'Sign out'); back.onclick = () => { adminOpen = false; adminRoute(); }; out.onclick = doSignOut; side.append(back, out);
   show('Overview');
 }
-window.addEventListener('hashchange', adminRoute);
+// Hidden entrance: tap the 🐾 logo 5 times quickly. There is no link, button or URL for it.
+let taps = 0, tapT;
+document.querySelector('.logo').addEventListener('click', () => {
+  taps++; clearTimeout(tapT); tapT = setTimeout(() => { taps = 0; }, 2500);
+  if (taps >= 5) { taps = 0; adminOpen = true; adminRoute(); }
+});
 if (sb) {
   sb.auth.onAuthStateChange((ev, session) => {
     user = session ? session.user : null; updateAcct();
     setTimeout(() => { // never call the database directly inside this callback
       if (ev === 'PASSWORD_RECOVERY') authView('recover');
       else if (user && (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION')) cloudPull();
-      if (location.hash === '#/admin' && ev !== 'TOKEN_REFRESHED') adminRoute();
+      if (adminOpen && ev !== 'TOKEN_REFRESHED') adminRoute();
     }, 0);
   });
   sb.from('app_settings').select('value').eq('key', 'announcement').maybeSingle().then(({data}) => { if (data && data.value) { const b = $('banner'); b.textContent = data.value; b.hidden = false; } });
