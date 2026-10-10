@@ -909,7 +909,7 @@ if (sb) {
 // ===== Stage 4: study rooms. Live over Supabase Realtime: "presence" plus a heartbeat message, so friends still show up if one of them is flaky =====
 const RKEY = 'studypaws.room', RCH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 let roomId = (() => { try { let r = sessionStorage.getItem('studypaws.rid'); if (!r) { r = uid(); sessionStorage.setItem('studypaws.rid', r); } return r; } catch (e) { return uid(); } })();
-let roomMembers = [], roomT, roomWatch, roomStat = '', roomErr = '', mateEls = {}, mateKeys = '', roomSeen = {}, roomLeaving = Promise.resolve(), joinTok = 0, lastTry = 0;
+let roomMembers = [], roomT, roomWatch, roomStat = '', roomErr = '', mateEls = {}, mateKeys = '', roomSeen = {}, roomBye = {}, lastTry = 0, roomChs = {};
 const GRACE = 30000; // a friend only disappears after 30s of silence, so short drops and phone sleeps no longer kick people out
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(5)), n => RCH[n % RCH.length]).join('');
 const myName = () => (S.name || PETS[S.pet].l).slice(0, 16);
@@ -926,7 +926,7 @@ function roomMerge() {
   const now = Date.now(), m = {};
   let st = {}; try { st = roomCh ? roomCh.presenceState() : {}; } catch (e) { st = {}; }
   Object.entries(st).forEach(([k, v]) => { // still in the presence list = still here
-    if (k === roomId) return;
+    if (k === roomId || (roomBye[k] && now - roomBye[k] < 4000)) return; // just said goodbye: the presence list is a moment behind
     const prev = roomSeen[k];
     roomSeen[k] = {t: now, src: prev && prev.src === 'b' ? 'b' : 'p', i: prev && prev.src === 'b' ? prev.i : cleanInfo(v[v.length - 1])};
   });
@@ -942,61 +942,85 @@ function roomTrack() {
   if (!roomCh || !roomReady) return;
   clearTimeout(roomT); roomT = setTimeout(() => { try { if (roomCh) roomCh.track(roomInfo()); } catch (e) { /* ignore */ } sendBeat(); }, 250);
 }
-async function joinRoom(code, rejoin) {
-  code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
-  if (!sb) return toast('Online features are unavailable right now.');
-  if (code.length !== 5) return toast('A room code has 5 letters or numbers.');
-  const keep = rejoin === true && roomCode === code ? roomSeen : null; // same room again: keep who we already see, no flicker
-  leaveRoom(true, !!keep);
-  const tok = joinTok; lastTry = Date.now();
-  roomCode = code; roomReady = false; roomSeen = keep || {}; roomErr = ''; roomStat = 'connecting';
+// Rooms are built so that nothing can get stuck: joining never waits on a slow network call, a channel is reused
+// instead of being torn down and rebuilt, and if anything fails the page retries by itself (no restart needed).
+const rtTopic = c => 'realtime:studypaws-room-' + c;
+function dropStale(code) { // forget an old half-closed channel with the same name, without waiting for the server
+  try { sb.realtime.channels = sb.realtime.channels.filter(c => c.topic !== rtTopic(code)); } catch (e) { /* ignore */ }
+}
+function roomLive(ch, code) {
+  if (ch !== roomCh) return;
+  roomReady = true; roomStat = 'live'; roomErr = ''; clearTimeout(roomWatch);
+  try { const r = ch.track(roomInfo()); if (r && r.catch) r.catch(() => { /* ignore */ }); } catch (e) { /* ignore */ }
+  sendBeat(); try { localStorage.setItem(RKEY, code); } catch (e) { /* ignore */ }
   roomRefresh();
-  await roomLeaving; // the old channel is fully gone before the new one starts (same name = same channel in supabase-js)
-  try { await Promise.all(sb.getChannels().filter(c => c.topic === 'realtime:studypaws-room-' + code).map(c => sb.removeChannel(c))); } catch (e) { /* ignore */ }
-  if (tok !== joinTok || roomCode !== code) return; // user left or joined somewhere else meanwhile
+}
+function armWatch(ch) {
+  clearTimeout(roomWatch);
+  roomWatch = setTimeout(() => { if (ch === roomCh && roomStat !== 'live') { roomStat = 'error'; roomErr = roomErr || 'Still not connected. The online service may be blocked or turned off.'; roomRefresh(); } }, 12000);
+}
+function openChannel(code) {
+  dropStale(code);
   const ch = sb.channel('studypaws-room-' + code, {config: {presence: {key: roomId}, broadcast: {self: false}}});
-  roomCh = ch;
+  roomChs[code] = ch; roomCh = ch; armWatch(ch);
   ch.on('presence', {event: 'sync'}, () => { if (ch === roomCh) roomRefresh(); })
     .on('broadcast', {event: 'beat'}, ({payload}) => {
       if (ch !== roomCh || !payload || typeof payload.k !== 'string' || payload.k === roomId) return;
-      roomSeen[payload.k] = {t: Date.now(), src: 'b', i: cleanInfo(payload.i)}; roomRefresh();
+      delete roomBye[payload.k]; roomSeen[payload.k] = {t: Date.now(), src: 'b', i: cleanInfo(payload.i)}; roomRefresh();
     }).on('broadcast', {event: 'bye'}, ({payload}) => { // only sent when someone presses Leave
       if (ch !== roomCh || !payload || typeof payload.k !== 'string') return;
-      delete roomSeen[payload.k]; roomRefresh();
-    }).on('broadcast', {event: 'cheer'}, ({payload}) => onCheer(payload))
-    .subscribe(async (st, err) => {
+      delete roomSeen[payload.k]; roomBye[payload.k] = Date.now(); roomRefresh();
+    }).on('broadcast', {event: 'cheer'}, ({payload}) => { if (ch === roomCh) onCheer(payload); })
+    .subscribe((st, err) => { // runs again by itself every time supabase reconnects
       if (ch !== roomCh) return;
-      if (st === 'SUBSCRIBED') {
-        roomReady = true; roomStat = 'live'; roomErr = '';
-        try { await ch.track(roomInfo()); } catch (e) { /* ignore */ }
-        sendBeat(); try { localStorage.setItem(RKEY, code); } catch (e) { /* ignore */ }
-        roomRefresh();
-      } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
+      if (st === 'SUBSCRIBED') roomLive(ch, roomCode);
+      else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
         roomReady = false; roomStat = 'error';
         roomErr = err && err.message ? String(err.message).slice(0, 120) : (st === 'TIMED_OUT' ? 'The connection timed out.' : 'The connection was refused.');
         roomRefresh();
       } else if (st === 'CLOSED') { roomReady = false; if (roomStat === 'live') roomStat = 'connecting'; roomRefresh(); }
     });
-  clearTimeout(roomWatch);
-  roomWatch = setTimeout(() => { if (ch === roomCh && roomStat !== 'live') { roomStat = 'error'; roomErr = roomErr || 'Still not connected. The online service may be blocked or turned off.'; roomRefresh(); } }, 10000);
+  return ch;
 }
-function leaveRoom(quiet, rejoin) {
-  const ch = roomCh; joinTok++;
-  if (ch && roomReady && !rejoin) { try { ch.send({type: 'broadcast', event: 'bye', payload: {k: roomId}}); } catch (e) { /* ignore */ } }
-  roomCh = null; roomReady = false; roomCode = null; roomMembers = []; if (!rejoin) roomSeen = {}; roomStat = ''; roomErr = ''; clearTimeout(roomWatch); clearTimeout(roomT);
-  if (ch) roomLeaving = roomLeaving.then(() => new Promise(r => setTimeout(r, rejoin ? 0 : 200))).then(() => sb.removeChannel(ch)).catch(() => { /* ignore */ }); // lets the goodbye go out first
+function joinRoom(code) {
+  code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  if (!sb) return toast('Online features are unavailable right now.');
+  if (code.length !== 5) return toast('A room code has 5 letters or numbers.');
+  if (roomCode === code && roomCh) return roomWake(); // already here (double tap): just make sure we are connected
+  if (roomCode) leaveRoom(true);
+  roomCode = code; roomReady = false; roomSeen = {}; roomBye = {}; roomErr = ''; roomStat = 'connecting'; lastTry = Date.now();
+  const old = roomChs[code];
+  if (old && (old.state === 'joined' || old.state === 'joining' || old.state === 'errored')) { // reuse it, never rebuild
+    roomCh = old; armWatch(old);
+    if (old.state === 'joined') roomLive(old, code);
+  } else openChannel(code);
+  roomRefresh();
+}
+function leaveRoom(quiet) {
+  const ch = roomCh;
+  if (ch && roomReady) { try { ch.send({type: 'broadcast', event: 'bye', payload: {k: roomId}}); } catch (e) { /* ignore */ } }
+  if (ch) { try { const r = ch.untrack(); if (r && r.catch) r.catch(() => { /* ignore */ }); } catch (e) { /* ignore */ } }
+  roomCh = null; roomReady = false; roomCode = null; roomMembers = []; roomSeen = {}; roomBye = {}; roomStat = ''; roomErr = ''; clearTimeout(roomWatch); clearTimeout(roomT);
   if (!quiet) { try { localStorage.removeItem(RKEY); } catch (e) { /* ignore */ } drawRoom(); }
 }
-// coming back from sleep / lost internet: reconnect quietly and say hello again
+// full reset of a stuck connection: never waits for the old one, so it cannot hang
+function hardRetry() {
+  const code = roomCode; if (!code || !sb) return;
+  const old = roomCh; roomCh = null; roomReady = false; lastTry = Date.now(); roomStat = 'connecting'; roomErr = ''; delete roomChs[code];
+  if (old) { try { Promise.race([sb.removeChannel(old), new Promise(r => setTimeout(r, 3000))]).catch(() => { /* ignore */ }); } catch (e) { /* ignore */ } }
+  openChannel(code); roomRefresh();
+}
+// coming back from sleep / lost internet: reconnect and say hello again
 function roomWake() {
   if (!roomCode || !sb) return;
-  const s = roomCh && roomCh.state;
-  if (s === 'joined' && roomReady) { try { roomCh.track(roomInfo()); } catch (e) { /* ignore */ } sendBeat(); }
-  else if (!roomCh || s === 'closed' || s === 'errored' || roomStat === 'error') { if (Date.now() - lastTry > 3000) joinRoom(roomCode, true); }
+  try { if (sb.realtime && sb.realtime.isConnected && !sb.realtime.isConnected()) sb.realtime.connect(); } catch (e) { /* ignore */ }
+  const ch = roomCh;
+  if (!ch || ch.state === 'closed') return hardRetry();
+  if (ch.state === 'joined') { if (!roomReady) roomLive(ch, roomCode); else { try { const r = ch.track(roomInfo()); if (r && r.catch) r.catch(() => { /* ignore */ }); } catch (e) { /* ignore */ } sendBeat(); } }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') roomWake(); });
 window.addEventListener('online', roomWake); window.addEventListener('pageshow', roomWake);
-setInterval(() => { if (roomCode && roomStat === 'error' && Date.now() - lastTry > 15000) joinRoom(roomCode, true); }, 5000); // keeps trying by itself
+setInterval(() => { if (roomCode && roomStat === 'error' && Date.now() - lastTry > 15000) hardRetry(); }, 5000); // keeps trying by itself
 function sendCheer() {
   if (!roomCh || !roomReady) return toast('Not connected to the room yet.');
   const payload = {k: roomId, n: myName()}; onCheer(payload);
@@ -1066,7 +1090,7 @@ function roomUI() {
   const stat = el('p', 'rstat' + (roomStat === 'error' ? ' err' : ''), roomStat === 'live' ? '🟢 Connected · ' + roomMembers.length + (roomMembers.length === 1 ? ' person here' : ' people here') : roomStat === 'error' ? '🔴 Can\'t connect: ' + roomErr : '🟡 Connecting...');
   b.append(el('h2', '', 'You are in a room'), code, stat);
   if (roomStat === 'error') {
-    const rt = el('button', 'btn sm', 'Try again'); rt.onclick = () => joinRoom(roomCode, true); rt.style.marginBottom = '10px'; b.append(rt, el('p', 'hint', 'Site owner: in Supabase open Realtime → Settings and make sure "Allow public access" is on.'));
+    const rt = el('button', 'btn sm', 'Try again'); rt.onclick = hardRetry; rt.style.marginBottom = '10px'; b.append(rt, el('p', 'hint', 'Site owner: in Supabase open Realtime → Settings and make sure "Allow public access" is on.'));
   }
   const ul = el('ul', 'rlist'); roomMembers.forEach(m => ul.append(el('li', '', (m.name || PETS[m.pet].l) + (m.k === roomId ? ' (you)' : '')))); b.append(btns, ul,
     el('p', 'hint', 'People in the room can see your pet, its name, and the subject you are studying. Anyone with the code can join, so only share it with friends.'));
