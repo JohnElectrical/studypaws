@@ -709,8 +709,14 @@ async function cloudPull() {
   } else setSync('Synced ✓');
 }
 async function doSignOut() {
-  clearTimeout(pushT); await cloudPush(); await sb.auth.signOut();
-  try { localStorage.removeItem(KEY); localStorage.removeItem(DKEY); localStorage.removeItem(CAT); } catch (e) { /* ignore */ } // keeps shared computers private
+  clearTimeout(pushT);
+  const wait = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
+  try { await wait(cloudPush(), 4000); } catch (e) { /* never let a failed sync block signing out */ }
+  try { await wait(sb.auth.signOut({scope: 'local'}), 4000); } catch (e) { /* ignore */ }
+  try {
+    Object.keys(localStorage).filter(k => k.indexOf('sb-') === 0).forEach(k => localStorage.removeItem(k)); // forces the login to clear even if the server call failed
+    localStorage.removeItem(KEY); localStorage.removeItem(DKEY); localStorage.removeItem(CAT); // keeps shared computers private
+  } catch (e) { /* ignore */ }
   location.hash = ''; location.reload();
 }
 function updateAcct() { $('acctBtn').textContent = user ? '👤 Account' : '👤 Sign in'; }
