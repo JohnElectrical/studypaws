@@ -118,8 +118,8 @@ svg *{transform-box:fill-box;transform-origin:center}
 @keyframes tilt{25%{transform:rotate(-3deg)}75%{transform:rotate(3deg)}}
 .pet[data-s=study] .head{transform:translateY(9px) rotate(3deg)}
 .pet[data-s=study] .book,.pet[data-s=study] .pencil{opacity:1}
-.pet[data-s=study] .pencil{animation:write .5s ease-in-out infinite alternate}
-@keyframes write{to{transform:translate(3px,1px) rotate(4deg)}}
+.pet[data-s=study] .pencil{transform-origin:50% 100%;animation:write .9s ease-in-out infinite}
+@keyframes write{0%,100%{transform:translate(0,0) rotate(0)}20%{transform:translate(-3px,1px) rotate(-5deg)}40%{transform:translate(1px,-1.5px) rotate(2deg)}60%{transform:translate(4px,1px) rotate(6deg)}80%{transform:translate(1px,-1px) rotate(1deg)}}
 .pet[data-s=read] .book{opacity:1}
 .pet[data-s=read] .head{animation:rnod 3.5s ease-in-out infinite}
 .pet[data-s=read] .eyes{animation:reyes 2s steps(4) infinite}
@@ -383,7 +383,7 @@ ${nose}${mouth}${accHead}</g>
 <g class="book"><rect x="58" y="176" width="43" height="32" rx="4" fill="#b6a8e6"/><rect x="99" y="176" width="43" height="32" rx="4" fill="#9b8bd0"/><path d="M100 176 V208" stroke="#fff" stroke-width="2.5"/><path d="M66 186 h26 M66 193 h22 M108 186 h26 M108 193 h20" stroke="#fff" stroke-width="2" opacity=".7"/></g>
 <g class="laptop"><path d="M54 208 H146 L138 174 H62Z" fill="#d8d2e8"/><rect x="68" y="178" width="64" height="24" rx="3" fill="#7fc0e6"/></g>
 <ellipse class="pl" cx="70" cy="200" rx="14" ry="10" fill="${paw}"/><ellipse class="pr" cx="130" cy="200" rx="14" ry="10" fill="${paw}"/>
-<rect class="pencil" x="136" y="176" width="7" height="30" rx="2" fill="#f4c542" transform="rotate(25 140 190)"/>
+<g transform="rotate(25 140 190)" style="transform-box:view-box;transform-origin:0 0"><rect class="pencil" x="136" y="176" width="7" height="30" rx="2" fill="#f4c542"/></g>
 </g></g>
 <g class="zzz" font-family="Georgia" font-weight="bold" fill="#9a8bd1"><text x="160" y="30" font-size="26">Z</text><text x="178" y="6" font-size="18">z</text></g></svg>`;
 }
@@ -851,10 +851,26 @@ function googleBtn(admin) {
   };
   return b;
 }
+// The admin email lives here, so only the password is typed. The password is NOT in this file: Supabase checks it.
+const ADMIN_EMAIL = 'PUT-YOUR-ADMIN-EMAIL-HERE';
 function adminLogin(a) {
   const c = el('div', 'mcard'); c.style.margin = 'auto';
-  const back = el('button', 'lnk', 'Close'); back.onclick = () => { adminOpen = false; adminRoute(); };
-  c.append(el('h2', '', 'Sign in'), el('p', '', 'Use the Google account of the site owner.'), googleBtn(true), back); a.append(c);
+  const pw = el('input'), go = el('button', 'btn', 'Open admin'), msg = el('p', 'msg'), back = el('button', 'lnk', 'Close');
+  pw.type = 'password'; pw.placeholder = 'Admin password'; pw.autocomplete = 'current-password'; pw.setAttribute('aria-label', 'Admin password'); pw.style.marginBottom = '10px';
+  go.style.width = '100%'; go.type = 'button';
+  back.onclick = () => { adminOpen = false; adminRoute(); };
+  const submit = async () => {
+    if (!pw.value) { msg.className = 'msg err'; msg.textContent = 'Type the password first.'; return; }
+    if (ADMIN_EMAIL.indexOf('@') < 1) { msg.className = 'msg err'; msg.textContent = 'Admin email is not set in the code yet.'; return; }
+    go.disabled = true; msg.className = 'msg'; msg.textContent = 'Checking...';
+    const {error} = await sb.auth.signInWithPassword({email: ADMIN_EMAIL, password: pw.value});
+    go.disabled = false;
+    if (error) { msg.className = 'msg err'; msg.textContent = /invalid/i.test(error.message) ? 'Wrong password.' : 'Could not sign in: ' + String(error.message).slice(0, 80); pw.select(); return; }
+    pw.value = ''; adminRoute();
+  };
+  go.onclick = submit; pw.onkeydown = e => { if (e.key === 'Enter') submit(); };
+  c.append(el('h2', '', 'Admin'), el('p', '', 'Enter the admin password.'), pw, go, msg, back); a.append(c);
+  setTimeout(() => pw.focus(), 50);
 }
 async function adminRoute() {
   const a = $('admin');
@@ -892,7 +908,9 @@ if (sb) {
 
 // ===== Stage 4: study rooms. Live over Supabase Realtime: "presence" plus a heartbeat message, so friends still show up if one of them is flaky =====
 const RKEY = 'studypaws.room', RCH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-let roomId = uid(), roomMembers = [], roomT, roomWatch, roomStat = '', roomErr = '', mateEls = {}, mateKeys = '', roomPres = {}, roomBeat = {}, presOK = false;
+let roomId = (() => { try { let r = sessionStorage.getItem('studypaws.rid'); if (!r) { r = uid(); sessionStorage.setItem('studypaws.rid', r); } return r; } catch (e) { return uid(); } })();
+let roomMembers = [], roomT, roomWatch, roomStat = '', roomErr = '', mateEls = {}, mateKeys = '', roomSeen = {}, roomLeaving = Promise.resolve(), joinTok = 0, lastTry = 0;
+const GRACE = 30000; // a friend only disappears after 30s of silence, so short drops and phone sleeps no longer kick people out
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(5)), n => RCH[n % RCH.length]).join('');
 const myName = () => (S.name || PETS[S.pet].l).slice(0, 16);
 const inviteLink = () => location.origin + location.pathname + '#room=' + roomCode;
@@ -906,8 +924,13 @@ function cleanInfo(i) { // everything from other people is checked before it is 
 }
 function roomMerge() {
   const now = Date.now(), m = {};
-  Object.entries(roomPres).forEach(([k, v]) => { m[k] = v; });
-  Object.entries(roomBeat).forEach(([k, x]) => { if (now - x.t > 15000) delete roomBeat[k]; else m[k] = x.i; });
+  let st = {}; try { st = roomCh ? roomCh.presenceState() : {}; } catch (e) { st = {}; }
+  Object.entries(st).forEach(([k, v]) => { // still in the presence list = still here
+    if (k === roomId) return;
+    const prev = roomSeen[k];
+    roomSeen[k] = {t: now, src: prev && prev.src === 'b' ? 'b' : 'p', i: prev && prev.src === 'b' ? prev.i : cleanInfo(v[v.length - 1])};
+  });
+  Object.keys(roomSeen).forEach(k => { if (now - roomSeen[k].t > GRACE) delete roomSeen[k]; else m[k] = roomSeen[k].i; });
   m[roomId] = cleanInfo(roomInfo()); // you always see yourself straight away
   roomMembers = Object.entries(m).map(([k, v]) => Object.assign({}, v, {k}));
 }
@@ -919,27 +942,28 @@ function roomTrack() {
   if (!roomCh || !roomReady) return;
   clearTimeout(roomT); roomT = setTimeout(() => { try { if (roomCh) roomCh.track(roomInfo()); } catch (e) { /* ignore */ } sendBeat(); }, 250);
 }
-function joinRoom(code) {
+async function joinRoom(code, rejoin) {
   code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   if (!sb) return toast('Online features are unavailable right now.');
   if (code.length !== 5) return toast('A room code has 5 letters or numbers.');
-  leaveRoom(true);
-  roomCode = code; roomReady = false; roomPres = {}; roomBeat = {}; presOK = false; roomErr = ''; roomStat = 'connecting';
+  const keep = rejoin === true && roomCode === code ? roomSeen : null; // same room again: keep who we already see, no flicker
+  leaveRoom(true, !!keep);
+  const tok = joinTok; lastTry = Date.now();
+  roomCode = code; roomReady = false; roomSeen = keep || {}; roomErr = ''; roomStat = 'connecting';
+  roomRefresh();
+  await roomLeaving; // the old channel is fully gone before the new one starts (same name = same channel in supabase-js)
+  try { await Promise.all(sb.getChannels().filter(c => c.topic === 'realtime:studypaws-room-' + code).map(c => sb.removeChannel(c))); } catch (e) { /* ignore */ }
+  if (tok !== joinTok || roomCode !== code) return; // user left or joined somewhere else meanwhile
   const ch = sb.channel('studypaws-room-' + code, {config: {presence: {key: roomId}, broadcast: {self: false}}});
   roomCh = ch;
-  ch.on('presence', {event: 'sync'}, () => {
-    if (ch !== roomCh) return;
-    const state = ch.presenceState(), now = Date.now(); roomPres = {};
-    Object.entries(state).forEach(([k, v]) => { if (k === roomId) presOK = true; else roomPres[k] = cleanInfo(v[v.length - 1]); });
-    if (presOK) Object.keys(roomBeat).forEach(k => { if (!(k in state) && now - roomBeat[k].t > 6000) delete roomBeat[k]; });
-    roomRefresh();
-  }).on('broadcast', {event: 'beat'}, ({payload}) => {
-    if (ch !== roomCh || !payload || typeof payload.k !== 'string' || payload.k === roomId) return;
-    roomBeat[payload.k] = {t: Date.now(), i: cleanInfo(payload.i)}; roomRefresh();
-  }).on('broadcast', {event: 'bye'}, ({payload}) => {
-    if (ch !== roomCh || !payload || typeof payload.k !== 'string') return;
-    delete roomBeat[payload.k]; delete roomPres[payload.k]; roomRefresh();
-  }).on('broadcast', {event: 'cheer'}, ({payload}) => onCheer(payload))
+  ch.on('presence', {event: 'sync'}, () => { if (ch === roomCh) roomRefresh(); })
+    .on('broadcast', {event: 'beat'}, ({payload}) => {
+      if (ch !== roomCh || !payload || typeof payload.k !== 'string' || payload.k === roomId) return;
+      roomSeen[payload.k] = {t: Date.now(), src: 'b', i: cleanInfo(payload.i)}; roomRefresh();
+    }).on('broadcast', {event: 'bye'}, ({payload}) => { // only sent when someone presses Leave
+      if (ch !== roomCh || !payload || typeof payload.k !== 'string') return;
+      delete roomSeen[payload.k]; roomRefresh();
+    }).on('broadcast', {event: 'cheer'}, ({payload}) => onCheer(payload))
     .subscribe(async (st, err) => {
       if (ch !== roomCh) return;
       if (st === 'SUBSCRIBED') {
@@ -955,15 +979,24 @@ function joinRoom(code) {
     });
   clearTimeout(roomWatch);
   roomWatch = setTimeout(() => { if (ch === roomCh && roomStat !== 'live') { roomStat = 'error'; roomErr = roomErr || 'Still not connected. The online service may be blocked or turned off.'; roomRefresh(); } }, 10000);
-  roomRefresh();
 }
-function leaveRoom(quiet) {
-  const ch = roomCh;
-  if (ch && roomReady) { try { ch.send({type: 'broadcast', event: 'bye', payload: {k: roomId}}); } catch (e) { /* ignore */ } }
-  roomCh = null; roomReady = false; roomCode = null; roomMembers = []; roomPres = {}; roomBeat = {}; presOK = false; roomStat = ''; roomErr = ''; clearTimeout(roomWatch); clearTimeout(roomT);
-  if (ch) setTimeout(() => { try { sb.removeChannel(ch); } catch (e) { /* ignore */ } }, 200); // lets the goodbye message go out first
+function leaveRoom(quiet, rejoin) {
+  const ch = roomCh; joinTok++;
+  if (ch && roomReady && !rejoin) { try { ch.send({type: 'broadcast', event: 'bye', payload: {k: roomId}}); } catch (e) { /* ignore */ } }
+  roomCh = null; roomReady = false; roomCode = null; roomMembers = []; if (!rejoin) roomSeen = {}; roomStat = ''; roomErr = ''; clearTimeout(roomWatch); clearTimeout(roomT);
+  if (ch) roomLeaving = roomLeaving.then(() => new Promise(r => setTimeout(r, rejoin ? 0 : 200))).then(() => sb.removeChannel(ch)).catch(() => { /* ignore */ }); // lets the goodbye go out first
   if (!quiet) { try { localStorage.removeItem(RKEY); } catch (e) { /* ignore */ } drawRoom(); }
 }
+// coming back from sleep / lost internet: reconnect quietly and say hello again
+function roomWake() {
+  if (!roomCode || !sb) return;
+  const s = roomCh && roomCh.state;
+  if (s === 'joined' && roomReady) { try { roomCh.track(roomInfo()); } catch (e) { /* ignore */ } sendBeat(); }
+  else if (!roomCh || s === 'closed' || s === 'errored' || roomStat === 'error') { if (Date.now() - lastTry > 3000) joinRoom(roomCode, true); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') roomWake(); });
+window.addEventListener('online', roomWake); window.addEventListener('pageshow', roomWake);
+setInterval(() => { if (roomCode && roomStat === 'error' && Date.now() - lastTry > 15000) joinRoom(roomCode, true); }, 5000); // keeps trying by itself
 function sendCheer() {
   if (!roomCh || !roomReady) return toast('Not connected to the room yet.');
   const payload = {k: roomId, n: myName()}; onCheer(payload);
@@ -1033,7 +1066,7 @@ function roomUI() {
   const stat = el('p', 'rstat' + (roomStat === 'error' ? ' err' : ''), roomStat === 'live' ? '🟢 Connected · ' + roomMembers.length + (roomMembers.length === 1 ? ' person here' : ' people here') : roomStat === 'error' ? '🔴 Can\'t connect: ' + roomErr : '🟡 Connecting...');
   b.append(el('h2', '', 'You are in a room'), code, stat);
   if (roomStat === 'error') {
-    const rt = el('button', 'btn sm', 'Try again'); rt.onclick = () => joinRoom(roomCode); rt.style.marginBottom = '10px'; b.append(rt, el('p', 'hint', 'Site owner: in Supabase open Realtime → Settings and make sure "Allow public access" is on.'));
+    const rt = el('button', 'btn sm', 'Try again'); rt.onclick = () => joinRoom(roomCode, true); rt.style.marginBottom = '10px'; b.append(rt, el('p', 'hint', 'Site owner: in Supabase open Realtime → Settings and make sure "Allow public access" is on.'));
   }
   const ul = el('ul', 'rlist'); roomMembers.forEach(m => ul.append(el('li', '', (m.name || PETS[m.pet].l) + (m.k === roomId ? ' (you)' : '')))); b.append(btns, ul,
     el('p', 'hint', 'People in the room can see your pet, its name, and the subject you are studying. Anyone with the code can join, so only share it with friends.'));
@@ -1131,20 +1164,20 @@ let installEv = null, wakeLock = null, wantAwake = false;
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
 const isApp = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
 function sysUI() {
-  const can = !isApp() && (!!installEv || isIOS);
+  const can = !isApp(), mobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
   $('installBtn').hidden = !can; $('sysInstall').hidden = !can;
-  $('sysPip').hidden = !('documentPictureInPicture' in window); $('sysPip').textContent = pipWin ? '📌 Close pop-out' : '📌 Pop-out timer';
+  $('sysPip').hidden = !('documentPictureInPicture' in window) && mobile; $('sysPip').textContent = pipWin ? '📌 Close pop-out' : '📌 Pop-out timer';
   $('sysAwake').hidden = !navigator.wakeLock; $('sysAwake').setAttribute('aria-pressed', wantAwake);
 }
 function doInstall() {
   if (installEv) { installEv.prompt(); installEv.userChoice.then(() => { installEv = null; sysUI(); }, () => {}); return; }
-  if (isIOS) {
-    modal.hidden = false; mcard.innerHTML = '';
-    const close = el('button', 'lnk', 'Close'); close.onclick = closeModal;
-    mcard.append(el('h2', '', 'Add StudyPaws to your home screen'), el('p', '', '1. Tap the Share button in Safari (the square with an arrow).'), el('p', '', '2. Scroll down and tap "Add to Home Screen".'), el('p', '', '3. Tap Add. StudyPaws then opens full screen like an app.'), close);
-    return;
-  }
-  toast('Open your browser menu and choose "Install app" or "Add to Home screen".');
+  const android = /android/i.test(navigator.userAgent);
+  const steps = isIOS ? ['1. Tap the Share button in Safari (the square with an arrow).', '2. Scroll down and tap "Add to Home Screen".', '3. Tap Add. StudyPaws then opens full screen like an app.']
+    : android ? ['1. Tap the ⋮ menu at the top right of Chrome.', '2. Tap "Add to Home screen" (or "Install app").', '3. Tap Add. The StudyPaws icon appears on your screen.']
+    : ['1. Click the install icon at the right end of the address bar, or open the ⋮ menu.', '2. Choose "Install StudyPaws" (or "Cast, save and share → Install page as app").', '3. StudyPaws then opens in its own window and you can pin it to your taskbar.'];
+  modal.hidden = false; mcard.innerHTML = '';
+  const close = el('button', 'lnk', 'Close'); close.onclick = closeModal;
+  mcard.append(el('h2', '', 'Add StudyPaws to your screen'), ...steps.map(t => el('p', '', t)), close);
 }
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; sysUI(); });
 window.addEventListener('appinstalled', () => { installEv = null; sysUI(); toast('StudyPaws was added to your device 🎉'); });
